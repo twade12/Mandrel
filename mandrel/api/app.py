@@ -135,8 +135,9 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
         })
     except Exception as exc:
         run_ctx.status = "failed"
-        run_ctx.error = str(exc)
-        await run_ctx.emit({"type": "run_failed", "error": str(exc)})
+        err_msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+        run_ctx.error = err_msg
+        await run_ctx.emit({"type": "run_failed", "error": err_msg})
     finally:
         await llm.aclose()
 

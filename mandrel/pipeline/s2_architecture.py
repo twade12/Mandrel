@@ -74,7 +74,8 @@ class ArchitectureStage:
 
             try:
                 arch = _parse_architecture(response)
-            except ValueError as exc:
+            except Exception as exc:
+                msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
                 if attempt == self._max_retries:
                     return StageResult(
                         state=state,
@@ -83,12 +84,12 @@ class ArchitectureStage:
                             passed=False,
                             violations=[Violation(
                                 code="ARCH_PARSE_ERROR",
-                                message=str(exc),
+                                message=msg,
                                 severity="error",
                             )],
                         ),
                     )
-                violations_ctx = f"JSON parse error: {exc}"
+                violations_ctx = f"Parse error: {msg}"
                 continue
 
             result = self._verifier.check(arch)
@@ -137,21 +138,23 @@ def _parse_architecture(llm_output: str) -> Architecture:
 
     blocks = [
         Block(
-            id=b["id"],
-            label=b["label"],
-            proposed_mpn=b.get("proposed_mpn"),
-            kicad_lib=b.get("kicad_lib"),
+            id=b.get("id") or "",
+            label=b.get("label") or "",
+            proposed_mpn=b.get("proposed_mpn") or None,
+            kicad_lib=b.get("kicad_lib") or None,
         )
         for b in (data.get("blocks") or [])
+        if isinstance(b, dict)
     ]
 
     connections = [
         Connection(
-            from_block=c["from_block"],
-            to_block=c["to_block"],
-            signal=c["signal"],
+            from_block=c.get("from_block") or "",
+            to_block=c.get("to_block") or "",
+            signal=c.get("signal") or "",
         )
         for c in (data.get("connections") or [])
+        if isinstance(c, dict)
     ]
 
     return Architecture(blocks=blocks, connections=connections)

@@ -46,7 +46,13 @@ class OpenAICompatibleProvider:
         }
         resp = await self._client.post("/chat/completions", json=payload)
         resp.raise_for_status()
-        return resp.json()["choices"][0]["message"]["content"]
+        content = resp.json()["choices"][0]["message"]["content"]
+        if content is None:
+            raise ValueError(
+                f"LLM returned null content for model '{self.model}'. "
+                "The model may have hit a context limit or produced an empty response."
+            )
+        return content
 
     async def aclose(self) -> None:
         await self._client.aclose()

@@ -112,9 +112,10 @@ class PipelineRunner:
         except Exception as exc:
             run.success = False
             run.completed_at = datetime.now(UTC)
-            run.error = str(exc)
+            err_msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+            run.error = err_msg
             await _emit(ctx, {
-                "type": "stage_failed", "stage": stage.name, "label": label, "error": str(exc),
+                "type": "stage_failed", "stage": stage.name, "label": label, "error": err_msg,
             })
             raise
 
