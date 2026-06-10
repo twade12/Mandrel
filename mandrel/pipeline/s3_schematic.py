@@ -17,8 +17,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from mandrel.adapters.kicad import KiCadCLIAdapter, KiCadCLIError
-from mandrel.adapters.skidl_gen import SKiDLAdapter, SKiDLError
+from mandrel.adapters.kicad import KiCadCLIAdapter
+from mandrel.adapters.skidl_gen import SKiDLAdapter
 from mandrel.core.state import DesignState, SchematicArtifact, VerifierResult, Violation
 from mandrel.core.workflow import Context, StageResult
 from mandrel.llm.prompts import S3_SKIDL_GEN
@@ -83,7 +83,8 @@ class SchematicStage:
             # 2. Run SKiDL
             try:
                 outputs = self._skidl.run_script(skidl_script, output_dir)
-            except SKiDLError as exc:
+            except Exception as exc:
+                exc_msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
                 if attempt == self._max_retries:
                     return StageResult(
                         state=state,
@@ -92,34 +93,40 @@ class SchematicStage:
                             passed=False,
                             violations=[Violation(
                                 code="SKIDL_EXEC_ERROR",
-                                message=str(exc),
+                                message=exc_msg,
                                 severity="error",
                             )],
                         ),
                     )
-                violations_context = f"SKiDL execution error:\n{exc}"
+                violations_context = f"SKiDL execution error:\n{exc_msg}"
                 continue
 
             # Save the script regardless of ERC outcome
             script_path = output_dir / "skidl_design.py"
             script_path.write_text(skidl_script, encoding="utf-8")
 
-            sch_path = outputs.get("schematic")
-            net_path = outputs.get("netlist")
+            # run_script keys by file stem; accept any .kicad_sch / .net output
+            sch_path = outputs.get("schematic") or next(
+                (p for p in outputs.values() if p.suffix == ".kicad_sch"), None
+            )
+            net_path = outputs.get("netlist") or next(
+                (p for p in outputs.values() if p.suffix == ".net"), None
+            )
 
             # 3. kicad-cli ERC
             if sch_path and sch_path.exists():
                 try:
                     report_path = self._kicad.run_erc(sch_path, output_dir)
                     erc_result  = self._erc.check(report_path)
-                except KiCadCLIError as exc:
-                    # kicad-cli not available — record as a warning, don't block Phase 1
+                except Exception as exc:
+                    # kicad-cli not available or ERC parse error — warn, don't block Phase 1
+                    exc_msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
                     erc_result = VerifierResult(
                         passed=True,
                         score=0.5,
                         violations=[Violation(
                             code="ERC_UNAVAILABLE",
-                            message=str(exc),
+                            message=exc_msg,
                             severity="warning",
                         )],
                     )
