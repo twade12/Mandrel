@@ -31,6 +31,14 @@ dev = [
     "pytest-cov>=6.0",
     "ruff>=0.8",
 ]
+# Phase 1 CAD tools — require Python ≤ 3.13 (cadquery-ocp wheel constraint).
+# Install with: uv sync --extra dev --extra cad
+# CI (Python 3.12) installs this group. Local Python 3.14 skips it safely
+# because all adapters are mocked in tests.
+cad = [
+    "skidl>=1.2.0",
+    "build123d>=0.7.0",
+]
 
 [project.scripts]
 mandrel = "mandrel.__main__:main"
@@ -45,6 +53,7 @@ select = ["E", "F", "I", "UP"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 addopts = "--cov=mandrel --cov-report=term-missing"
 

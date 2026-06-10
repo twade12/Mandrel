@@ -67,8 +67,8 @@ class PowerBudget(BaseModel):
 
 
 class ProductSpec(BaseModel):
-    title: str
-    description: str
+    title: str = ""
+    description: str = ""
     functions: list[str] = []
     interfaces: list[str] = []  # "USB-C", "I2C", "SPI", etc.
     power: PowerBudget | None = None

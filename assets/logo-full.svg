@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64" width="640" height="128">
+  <!-- Full-width dark background -->
+  <rect width="320" height="64" rx="10" ry="10" fill="#0C1521"/>
+
+  <!-- ── Mark (64×64) ───────────────────────────────────────── -->
+  <rect x="0" y="0" width="64" height="64" rx="10" ry="10" fill="none" stroke="#1E3A50" stroke-width="1"/>
+
+  <line x1="12" y1="8"  x2="12" y2="56" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
+  <line x1="12" y1="8"  x2="32" y2="28" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
+  <line x1="52" y1="8"  x2="32" y2="28" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
+  <line x1="52" y1="8"  x2="52" y2="56" stroke="#22D3EE" stroke-width="4" stroke-linecap="round"/>
+
+  <circle cx="12" cy="8"  r="5.5" fill="#22D3EE"/>
+  <circle cx="12" cy="8"  r="2.2" fill="#0C1521"/>
+  <circle cx="52" cy="8"  r="5.5" fill="#22D3EE"/>
+  <circle cx="52" cy="8"  r="2.2" fill="#0C1521"/>
+  <circle cx="32" cy="28" r="7"   fill="#22D3EE"/>
+  <circle cx="32" cy="28" r="3"   fill="#0C1521"/>
+  <circle cx="12" cy="56" r="5.5" fill="#22D3EE"/>
+  <circle cx="12" cy="56" r="2.2" fill="#0C1521"/>
+  <circle cx="52" cy="56" r="5.5" fill="#22D3EE"/>
+  <circle cx="52" cy="56" r="2.2" fill="#0C1521"/>
+
+  <!-- ── Vertical divider ──────────────────────────────────── -->
+  <line x1="74" y1="12" x2="74" y2="52" stroke="#1E3A50" stroke-width="1"/>
+
+  <!-- ── Wordmark ──────────────────────────────────────────── -->
+  <text x="84" y="40"
+        font-family="'JetBrains Mono','Courier New',Courier,monospace"
+        font-size="28" font-weight="700"
+        fill="#F1F5F9" letter-spacing="5">MANDREL</text>
+
+  <!-- ── Tagline ───────────────────────────────────────────── -->
+  <text x="85" y="55"
+        font-family="'JetBrains Mono','Courier New',Courier,monospace"
+        font-size="8" font-weight="400"
+        fill="#64748B" letter-spacing="3">ELECTRONICS ORCHESTRATION</text>
+</svg>

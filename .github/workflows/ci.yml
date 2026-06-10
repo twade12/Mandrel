@@ -41,7 +41,7 @@ jobs:
           version: "latest"
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: uv sync --extra dev --extra cad
 
       - name: Lint
         run: uv run ruff check mandrel/ tests/

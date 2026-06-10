@@ -37,5 +37,10 @@ class Settings(BaseSettings):
     ngspice_path: str = "ngspice"
     calculix_path: str = "ccx"
 
+    # KiCad symbol library path (needed by SKiDL for part lookup)
+    # Docker default: /usr/share/kicad/symbols
+    # macOS KiCad app: /Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols
+    kicad_lib_path: str = "/usr/share/kicad/symbols"
+
 
 settings = Settings()

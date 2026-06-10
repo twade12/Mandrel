@@ -17,7 +17,7 @@ class NoopStage:
     def __init__(self, name: str) -> None:
         self.name = name
 
-    def run(self, state: DesignState, ctx: Context) -> StageResult:
+    async def run(self, state: DesignState, ctx: Context) -> StageResult:
         return StageResult(
             state=state,
             artifacts=[],

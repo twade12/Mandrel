@@ -34,7 +34,7 @@ def db_url() -> str:
     )
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def db_engine(db_url):
     engine = create_async_engine(db_url, echo=False)
     async with engine.begin() as conn:
@@ -45,7 +45,7 @@ async def db_engine(db_url):
     await engine.dispose()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def db_session(db_engine) -> AsyncSession:
     async with AsyncSession(db_engine, expire_on_commit=False) as session:
         yield session

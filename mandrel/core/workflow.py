@@ -6,7 +6,6 @@ backed by Temporal later without touching Stage code.
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -43,7 +42,7 @@ class StageResult:
 class Stage(Protocol):
     name: str
 
-    def run(self, state: DesignState, ctx: Context) -> StageResult:
+    async def run(self, state: DesignState, ctx: Context) -> StageResult:
         ...
 
 
@@ -89,7 +88,7 @@ class PipelineRunner:
         run = StageRun(stage_name=stage.name, started_at=datetime.now(UTC))
 
         try:
-            result: StageResult = await asyncio.to_thread(stage.run, state, ctx)
+            result: StageResult = await stage.run(state, ctx)
             run.success = True
             run.completed_at = datetime.now(UTC)
             run.verifier_result = result.verifier_result
