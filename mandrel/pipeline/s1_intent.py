@@ -82,12 +82,12 @@ def _parse_spec(llm_output: str, raw_brief: str) -> ProductSpec:
         power = None
 
     return ProductSpec(
-        title=str(data.get("title", "Unnamed Design")),
-        description=str(data.get("description", "")),
-        functions=list(data.get("functions", [])),
-        interfaces=list(data.get("interfaces", [])),
+        title=str(data.get("title") or "Unnamed Design"),
+        description=str(data.get("description") or ""),
+        functions=list(data.get("functions") or []),
+        interfaces=list(data.get("interfaces") or []),
         power=power,
-        environment=data.get("environment"),
+        environment=data.get("environment") or None,
         target_cost_usd=(
             float(data["target_cost_usd"]) if data.get("target_cost_usd") is not None else None
         ),
