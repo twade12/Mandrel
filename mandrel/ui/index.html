@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mandrel — Electronics Design Orchestrator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+
+    :root {
+      --bg:      #0C1521;
+      --surface: #111d2e;
+      --border:  #1e3a5f;
+      --cyan:    #22D3EE;
+      --text:    #E2E8F0;
+      --muted:   #64748B;
+      --success: #10B981;
+      --error:   #F43F5E;
+      --warning: #F59E0B;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace; }
+
+    /* PCB grid background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(34,211,238,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34,211,238,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .surface    { background: var(--surface); border: 1px solid var(--border); }
+    .accent     { color: var(--cyan); }
+    .muted      { color: var(--muted); }
+    .text-success { color: var(--success); }
+    .text-error   { color: var(--error); }
+    .text-warning { color: var(--warning); }
+
+    /* Glowing stage pill */
+    .stage-pill {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .stage-pill.running {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(34,211,238,.25);
+      animation: pulse-border 1.5s ease-in-out infinite;
+    }
+    .stage-pill.passed  { border-color: var(--success); }
+    .stage-pill.failed  { border-color: var(--error); }
+    .stage-pill.waiting { border-color: var(--warning); }
+
+    @keyframes pulse-border {
+      0%, 100% { box-shadow: 0 0 8px rgba(34,211,238,.2); }
+      50%       { box-shadow: 0 0 20px rgba(34,211,238,.5); }
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(34,211,238,.3);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Log console */
+    .log-console {
+      background: #060d16;
+      border: 1px solid var(--border);
+      font-size: .75rem;
+      line-height: 1.5;
+      max-height: 240px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    /* Violation badge */
+    .badge-error   { background: rgba(244,63,94,.15);  color: var(--error);   border: 1px solid rgba(244,63,94,.3); }
+    .badge-warning { background: rgba(245,158,11,.12); color: var(--warning); border: 1px solid rgba(245,158,11,.3); }
+    .badge-info    { background: rgba(34,211,238,.1);  color: var(--cyan);    border: 1px solid rgba(34,211,238,.3); }
+
+    /* Checkpoint banner */
+    .checkpoint-banner {
+      background: rgba(245,158,11,.08);
+      border: 1px solid rgba(245,158,11,.4);
+      box-shadow: 0 0 24px rgba(245,158,11,.15);
+    }
+
+    /* Button base */
+    .btn {
+      font-family: inherit;
+      font-size: .8rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: .45rem 1.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity .15s, box-shadow .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-approve {
+      background: rgba(16,185,129,.15);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+    .btn-approve:hover { box-shadow: 0 0 12px rgba(16,185,129,.35); }
+    .btn-reject  {
+      background: rgba(244,63,94,.12);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+    .btn-reject:hover { box-shadow: 0 0 12px rgba(244,63,94,.3); }
+    .btn-primary {
+      background: rgba(34,211,238,.12);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+    }
+    .btn-primary:hover { box-shadow: 0 0 14px rgba(34,211,238,.35); }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* BOM table */
+    table { border-collapse: collapse; width: 100%; font-size: .78rem; }
+    th { color: var(--muted); font-weight: 500; text-align: left; padding: .4rem .75rem; border-bottom: 1px solid var(--border); }
+    td { padding: .4rem .75rem; border-bottom: 1px solid rgba(30,58,95,.5); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(34,211,238,.03); }
+
+    /* Architecture blocks */
+    .arch-block {
+      border: 1px solid var(--border);
+      background: rgba(34,211,238,.05);
+      border-radius: 6px;
+      padding: .5rem .75rem;
+      font-size: .75rem;
+      white-space: nowrap;
+    }
+    .arch-block.mcu-block {
+      border-color: rgba(34,211,238,.5);
+      background: rgba(34,211,238,.08);
+    }
+    .arch-block.power-block {
+      border-color: rgba(245,158,11,.4);
+      background: rgba(245,158,11,.06);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg:      '#0C1521',
+            surface: '#111d2e',
+            border:  '#1e3a5f',
+            cyan:    '#22D3EE',
+            success: '#10B981',
+            error:   '#F43F5E',
+            warning: '#F59E0B',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="h-full min-h-screen relative z-10">
+
+<div x-data="mandrel()" x-cloak class="max-w-5xl mx-auto px-4 py-8 space-y-6">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <!-- Logo mark (inline SVG) -->
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="6" fill="#0C1521"/>
+        <path d="M6 24 L6 8 L16 18 L26 8 L26 24" stroke="#22D3EE" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </svg>
+      <div>
+        <h1 class="text-lg font-semibold tracking-wide accent">MANDREL</h1>
+        <p class="text-xs muted tracking-widest uppercase">Electronics Design Orchestrator</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 text-xs muted">
+      <span x-show="runId" x-text="'Run: ' + runId.slice(0,8) + '...'" class="font-mono"></span>
+      <span
+        x-show="status !== 'idle'"
+        :class="{
+          'text-success': status === 'completed',
+          'text-error': status === 'failed',
+          'accent': status === 'running',
+          'text-warning': status === 'waiting_checkpoint',
+        }"
+        x-text="statusLabel"
+        class="uppercase tracking-widest font-semibold"
+      ></span>
+    </div>
+  </header>
+
+  <!-- ── Start form (shown only when idle) ──────────────────────────────── -->
+  <div x-show="status === 'idle'" class="surface rounded-lg p-6 space-y-4">
+    <h2 class="text-sm font-semibold tracking-widest uppercase muted">New Design Run</h2>
+
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs muted mb-1 uppercase tracking-wide">Product Brief</label>
+        <textarea
+          x-model="brief"
+          rows="3"
+          placeholder="e.g. A compact sensor board that measures temperature, humidity, and ambient light with USB-C power and a Feather form factor"
+          class="w-full bg-bg border border-border rounded px-3 py-2 text-sm text-text placeholder-muted focus:outline-none focus:border-cyan resize-none"
+        ></textarea>
+      </div>
+
+      <div class="flex gap-4 flex-wrap">
+        <div>
+          <label class="block text-xs muted mb-1 uppercase tracking-wide">Form Factor</label>
+          <select x-model="formFactor" class="bg-bg border border-border rounded px-3 py-2 text-sm text-text focus:outline-none focus:border-cyan">
+            <option value="feather">Adafruit Feather</option>
+            <option value="hat">Raspberry Pi HAT</option>
+            <option value="mikrobus">MikroBUS Click</option>
+            <option value="arduino_shield">Arduino Shield</option>
+            <option value="din_rail">DIN Rail</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+        <div class="flex items-end pb-0.5">
+          <label class="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" x-model="autoApprove" class="accent-cyan w-4 h-4 rounded" />
+            <span class="muted text-xs uppercase tracking-wide">Auto-approve checkpoints</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <button
+      @click="startRun()"
+      :disabled="!brief.trim()"
+      class="btn btn-primary w-full"
+    >
+      &#9658; Run Pipeline
+    </button>
+  </div>
+
+  <!-- ── Pipeline stages ────────────────────────────────────────────────── -->
+  <div x-show="status !== 'idle'" class="space-y-3">
+    <h2 class="text-xs uppercase tracking-widest muted">Pipeline</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+      <template x-for="s in stages" :key="s.name">
+        <div
+          class="stage-pill rounded-lg p-3 flex flex-col gap-1"
+          :class="s.status"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-xs muted uppercase tracking-wide" x-text="'S' + s.num"></span>
+            <span x-show="s.status === 'running'"><span class="spinner"></span></span>
+            <span x-show="s.status === 'passed'" class="text-success text-sm">&#10003;</span>
+            <span x-show="s.status === 'failed'" class="text-error text-sm">&#10005;</span>
+            <span x-show="s.status === 'waiting'" class="text-warning text-sm">&#9654;</span>
+          </div>
+          <div class="text-xs font-semibold text-text" x-text="s.label"></div>
+          <div x-show="s.violations && s.violations.length" class="flex flex-wrap gap-1 mt-1">
+            <template x-for="v in (s.violations || []).slice(0,3)" :key="v.code">
+              <span
+                class="text-xs px-1.5 py-0.5 rounded font-mono"
+                :class="v.severity === 'error' ? 'badge-error' : 'badge-warning'"
+                x-text="v.code"
+              ></span>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── Checkpoint banner ──────────────────────────────────────────────── -->
+  <div x-show="status === 'waiting_checkpoint'" class="checkpoint-banner rounded-lg p-5 space-y-4">
+    <div class="flex items-start gap-3">
+      <span class="text-warning text-lg">&#9888;</span>
+      <div>
+        <h3 class="font-semibold text-warning text-sm uppercase tracking-wide">
+          Human Checkpoint — <span x-text="checkpoint.stageLabel"></span>
+        </h3>
+        <p class="text-xs muted mt-1">
+          Review the output above before the pipeline continues. Once approved, the next stage begins automatically.
+        </p>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button @click="resolveCheckpoint('approve')" class="btn btn-approve">&#10003; Approve &amp; Continue</button>
+      <button @click="resolveCheckpoint('reject')"  class="btn btn-reject">&#10005; Reject &amp; Halt</button>
+    </div>
+  </div>
+
+  <!-- ── Architecture diagram ───────────────────────────────────────────── -->
+  <div x-show="architecture" class="surface rounded-lg p-5 space-y-3">
+    <h2 class="text-xs uppercase tracking-widest muted">Block Architecture</h2>
+    <!-- Connections SVG + block grid laid out by JS -->
+    <div class="overflow-x-auto">
+      <div class="flex flex-wrap gap-3 min-h-[80px] items-center">
+        <template x-for="b in (architecture ? architecture.blocks : [])" :key="b.id">
+          <div
+            class="arch-block"
+            :class="{
+              'mcu-block':   b.type === 'mcu',
+              'power-block': b.type === 'power',
+            }"
+          >
+            <div class="font-semibold text-text text-xs" x-text="b.label"></div>
+            <div x-show="b.proposed_mpn" class="muted text-xs mt-0.5 font-mono" x-text="b.proposed_mpn"></div>
+          </div>
+        </template>
+      </div>
+      <div x-show="architecture && architecture.connections && architecture.connections.length" class="mt-2 text-xs muted">
+        <span x-text="(architecture ? architecture.connections.length : 0) + ' connections'"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOM table ──────────────────────────────────────────────────────── -->
+  <div x-show="bom && bom.lines && bom.lines.length" class="surface rounded-lg p-5 space-y-3">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs uppercase tracking-widest muted">Bill of Materials</h2>
+      <div class="flex items-center gap-3 text-xs">
+        <span
+          :class="bom && bom.all_in_stock ? 'text-success' : 'text-error'"
+          x-text="bom && bom.all_in_stock ? 'All in stock' : 'Stock issues'"
+        ></span>
+        <span x-show="bom && bom.total_cost_usd" class="accent font-semibold"
+          x-text="bom ? '$' + bom.total_cost_usd.toFixed(2) + ' est.' : ''"></span>
+        <span
+          x-show="bom && !bom.sourcing_verified"
+          class="badge-warning px-2 py-0.5 rounded text-xs"
+        >STUB</span>
+        <span
+          x-show="bom && bom.sourcing_verified"
+          class="badge-info px-2 py-0.5 rounded text-xs"
+        >LIVE</span>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Ref</th>
+            <th>MPN</th>
+            <th>Description</th>
+            <th>Distributor</th>
+            <th>Stock</th>
+            <th>Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="line in (bom ? bom.lines : [])" :key="line.part.mpn">
+            <tr>
+              <td class="font-mono accent" x-text="line.part.reference || '—'"></td>
+              <td class="font-mono text-text" x-text="line.part.mpn"></td>
+              <td class="muted" x-text="line.part.value || '—'"></td>
+              <td class="muted" x-text="line.part.distributor_refs && line.part.distributor_refs[0] ? line.part.distributor_refs[0].distributor : '—'"></td>
+              <td>
+                <span
+                  :class="line.part.in_stock ? 'text-success' : 'text-error'"
+                  x-text="line.part.in_stock ? 'YES' : 'NO'"
+                ></span>
+              </td>
+              <td class="font-mono" x-text="line.part.unit_price_usd ? '$' + line.part.unit_price_usd.toFixed(2) : '—'"></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Event log console ──────────────────────────────────────────────── -->
+  <div x-show="status !== 'idle'" class="space-y-2">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xs uppercase tracking-widest muted">Event Log</h2>
+      <button @click="logExpanded = !logExpanded" class="text-xs muted hover:text-text transition-colors">
+        <span x-text="logExpanded ? '&#9650; collapse' : '&#9660; expand'"></span>
+      </button>
+    </div>
+    <div x-show="logExpanded" class="log-console rounded p-3 space-y-0.5" x-ref="logEl">
+      <template x-for="(ev, i) in events" :key="i">
+        <div class="font-mono flex gap-2">
+          <span class="muted select-none" x-text="String(i+1).padStart(3,'0')">001</span>
+          <span
+            :class="{
+              'accent':        ev.type === 'stage_started',
+              'text-success':  ev.type === 'stage_completed' && ev.passed,
+              'text-error':    ev.type === 'stage_failed' || (ev.type === 'stage_completed' && !ev.passed),
+              'text-warning':  ev.type === 'checkpoint_needed',
+              'text-success':  ev.type === 'run_completed',
+              'text-error':    ev.type === 'run_failed',
+              'muted':         ev.type === 'ping' || ev.type === 'checkpoint_resolved',
+            }"
+            x-text="formatEvent(ev)"
+          ></span>
+        </div>
+      </template>
+      <div x-show="!events.length" class="muted text-xs">Waiting for events…</div>
+    </div>
+  </div>
+
+  <!-- ── Completed / failed banners ─────────────────────────────────────── -->
+  <div x-show="status === 'completed'" class="rounded-lg p-4 flex items-center gap-3"
+       style="background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.3);">
+    <span class="text-success text-xl">&#10003;</span>
+    <div>
+      <div class="text-success font-semibold text-sm">Pipeline completed successfully</div>
+      <div class="text-xs muted mt-0.5">All stages passed. Review artifacts in the project directory.</div>
+    </div>
+    <button @click="reset()" class="ml-auto btn btn-primary text-xs">New Run</button>
+  </div>
+
+  <div x-show="status === 'failed'" class="rounded-lg p-4 flex items-start gap-3"
+       style="background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.3);">
+    <span class="text-error text-xl">&#10005;</span>
+    <div class="flex-1">
+      <div class="text-error font-semibold text-sm">Pipeline failed</div>
+      <div class="text-xs muted mt-0.5 font-mono" x-text="runError"></div>
+    </div>
+    <button @click="reset()" class="ml-auto btn btn-reject text-xs">New Run</button>
+  </div>
+
+</div>
+
+<script>
+  function mandrel() {
+    return {
+      // ── Form state
+      brief:      '',
+      formFactor: 'feather',
+      autoApprove: false,
+
+      // ── Run state
+      runId:     null,
+      status:    'idle',   // idle | running | waiting_checkpoint | completed | failed
+      runError:  null,
+      ws:        null,
+
+      // ── Pipeline data
+      events:       [],
+      logExpanded:  true,
+      architecture: null,
+      bom:          null,
+      checkpoint: { stage: null, stageLabel: null },
+
+      stages: [
+        { num: 1, name: 's1_intent',       label: 'Extract Spec',   status: 'idle', violations: [] },
+        { num: 2, name: 's2_architecture', label: 'Architecture',   status: 'idle', violations: [] },
+        { num: 3, name: 's3_schematic',    label: 'Schematic+ERC',  status: 'idle', violations: [] },
+        { num: 5, name: 's5_enclosure',    label: 'Enclosure',      status: 'idle', violations: [] },
+        { num: 6, name: 's6_bom',          label: 'BOM & Sourcing', status: 'idle', violations: [] },
+      ],
+
+      get statusLabel() {
+        const map = {
+          running:             'Running',
+          waiting_checkpoint:  'Awaiting Approval',
+          completed:           'Completed',
+          failed:              'Failed',
+        };
+        return map[this.status] || this.status;
+      },
+
+      // ── Actions
+
+      async startRun() {
+        if (!this.brief.trim()) return;
+        this.status = 'running';
+        this.events = [];
+        this.architecture = null;
+        this.bom = null;
+        this.runError = null;
+        this.stages.forEach(s => { s.status = 'idle'; s.violations = []; });
+
+        const res = await fetch('/api/runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brief: this.brief,
+            form_factor: this.formFactor,
+            auto_approve: this.autoApprove,
+          }),
+        });
+        const { run_id } = await res.json();
+        this.runId = run_id;
+        this.connectWs(run_id);
+      },
+
+      connectWs(runId) {
+        const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+        this.ws = new WebSocket(`${proto}://${location.host}/api/runs/${runId}/ws`);
+
+        this.ws.onmessage = (e) => {
+          const ev = JSON.parse(e.data);
+          this.handleEvent(ev);
+        };
+
+        this.ws.onerror = () => {
+          this.status = 'failed';
+          this.runError = 'WebSocket connection error';
+        };
+      },
+
+      handleEvent(ev) {
+        if (ev.type === 'ping') return;
+        this.events.push(ev);
+        this.$nextTick(() => {
+          const el = this.$refs.logEl;
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+
+        if (ev.type === 'stage_started') {
+          const s = this.stages.find(x => x.name === ev.stage);
+          if (s) s.status = 'running';
+        }
+
+        if (ev.type === 'stage_completed') {
+          const s = this.stages.find(x => x.name === ev.stage);
+          if (s) {
+            s.status = ev.passed ? 'passed' : 'failed';
+            s.violations = ev.violations || [];
+          }
+          // Extract architecture / bom from state
+          if (ev.state) {
+            if (ev.state.architecture) this.architecture = ev.state.architecture;
+            if (ev.state.bom)          this.bom = ev.state.bom;
+          }
+        }
+
+        if (ev.type === 'stage_failed') {
+          const s = this.stages.find(x => x.name === ev.stage);
+          if (s) s.status = 'failed';
+        }
+
+        if (ev.type === 'checkpoint_needed') {
+          const s = this.stages.find(x => x.name === ev.stage);
+          if (s) s.status = 'waiting';
+          this.status = 'waiting_checkpoint';
+          this.checkpoint = { stage: ev.stage, stageLabel: ev.label };
+          if (ev.state) {
+            if (ev.state.architecture) this.architecture = ev.state.architecture;
+            if (ev.state.bom)          this.bom = ev.state.bom;
+          }
+        }
+
+        if (ev.type === 'checkpoint_resolved') {
+          const s = this.stages.find(x => x.name === ev.stage);
+          if (s && s.status === 'waiting') s.status = 'passed';
+          this.status = 'running';
+          this.checkpoint = { stage: null, stageLabel: null };
+        }
+
+        if (ev.type === 'run_completed') {
+          this.status = 'completed';
+          if (ev.state) {
+            if (ev.state.architecture) this.architecture = ev.state.architecture;
+            if (ev.state.bom)          this.bom = ev.state.bom;
+          }
+        }
+
+        if (ev.type === 'run_failed') {
+          this.status = 'failed';
+          this.runError = ev.error || 'Unknown error';
+        }
+      },
+
+      async resolveCheckpoint(decision) {
+        if (!this.runId) return;
+        await fetch(`/api/runs/${this.runId}/checkpoint`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision }),
+        });
+      },
+
+      reset() {
+        if (this.ws) { this.ws.close(); this.ws = null; }
+        this.runId = null;
+        this.status = 'idle';
+        this.runError = null;
+        this.events = [];
+        this.architecture = null;
+        this.bom = null;
+        this.stages.forEach(s => { s.status = 'idle'; s.violations = []; });
+      },
+
+      formatEvent(ev) {
+        switch (ev.type) {
+          case 'stage_started':    return `→ ${ev.label || ev.stage} started`;
+          case 'stage_completed':  return `${ev.passed ? '✓' : '✗'} ${ev.label || ev.stage} ${ev.passed ? 'passed' : 'FAILED'} (score: ${(ev.score||0).toFixed(2)})`;
+          case 'stage_failed':     return `✗ ${ev.label || ev.stage} error: ${ev.error}`;
+          case 'checkpoint_needed':   return `⚠ Checkpoint: ${ev.label || ev.stage} — awaiting review`;
+          case 'checkpoint_resolved': return `→ Checkpoint ${ev.stage}: ${ev.decision}`;
+          case 'run_completed':    return '✓ Pipeline completed';
+          case 'run_failed':       return `✗ Pipeline failed: ${ev.error}`;
+          default:                 return `${ev.type}`;
+        }
+      },
+    }
+  }
+</script>
+</body>
+</html>

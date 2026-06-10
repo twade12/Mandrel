@@ -6,6 +6,7 @@ backed by Temporal later without touching Stage code.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -17,12 +18,22 @@ from .state import DesignState, StageRun, VerifierResult
 # ── Context ───────────────────────────────────────────────────────────────────
 
 
+STAGE_LABELS: dict[str, str] = {
+    "s1_intent":       "Extract Spec",
+    "s2_architecture": "Architecture",
+    "s3_schematic":    "Schematic + ERC",
+    "s5_enclosure":    "Enclosure",
+    "s6_bom":          "BOM & Sourcing",
+}
+
+
 @dataclass
 class Context:
     """Runtime context passed to every stage.run() call."""
 
     project_dir: Path
-    config: Any = None  # mandrel.config.Settings — injected at runtime
+    config: Any = None   # mandrel.config.Settings — injected at runtime
+    on_event: Any = None  # Optional async callable: async def on_event(event: dict) -> None
 
 
 # ── StageResult ───────────────────────────────────────────────────────────────
@@ -85,7 +96,10 @@ class PipelineRunner:
         return state
 
     async def _run_stage(self, stage: Stage, state: DesignState, ctx: Context) -> DesignState:
+        label = STAGE_LABELS.get(stage.name, stage.name)
         run = StageRun(stage_name=stage.name, started_at=datetime.now(UTC))
+
+        await _emit(ctx, {"type": "stage_started", "stage": stage.name, "label": label})
 
         try:
             result: StageResult = await stage.run(state, ctx)
@@ -98,6 +112,9 @@ class PipelineRunner:
             run.success = False
             run.completed_at = datetime.now(UTC)
             run.error = str(exc)
+            await _emit(ctx, {
+                "type": "stage_failed", "stage": stage.name, "label": label, "error": str(exc),
+            })
             raise
 
         finally:
@@ -105,10 +122,45 @@ class PipelineRunner:
                 update={"history": [*state.history, run], "updated_at": datetime.now(UTC)}
             )
 
+        vr = result.verifier_result
+        await _emit(ctx, {
+            "type": "stage_completed",
+            "stage": stage.name,
+            "label": label,
+            "passed": vr.passed if vr else True,
+            "score": vr.score if vr else 1.0,
+            "violations": [v.model_dump() for v in vr.violations] if vr else [],
+            "state": state.model_dump(mode="json"),
+        })
+
         # Fire checkpoint if one is registered for this stage
         if stage.name in self.checkpoints:
-            decision = self.checkpoints[stage.name].request(state, [Path(a) for a in run.artifacts])
+            cp = self.checkpoints[stage.name]
+            cp_label = getattr(cp, "label", "") or label
+            await _emit(ctx, {
+                "type": "checkpoint_needed",
+                "stage": stage.name,
+                "label": label,
+                "summary": cp_label,
+                "state": state.model_dump(mode="json"),
+            })
+            artifacts = [Path(a) for a in run.artifacts]
+            if asyncio.iscoroutinefunction(cp.request):
+                decision = await cp.request(state, artifacts)
+            else:
+                decision = await asyncio.to_thread(cp.request, state, artifacts)
+
+            await _emit(ctx, {
+                "type": "checkpoint_resolved",
+                "stage": stage.name,
+                "decision": decision.value,
+            })
             if decision == Decision.REJECT:
                 raise RuntimeError(f"Stage '{stage.name}' rejected at human checkpoint.")
 
         return state
+
+
+async def _emit(ctx: Context, event: dict) -> None:
+    if ctx.on_event:
+        await ctx.on_event(event)

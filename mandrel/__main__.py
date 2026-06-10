@@ -22,6 +22,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = p.add_subparsers(dest="command")
 
+    serve = sub.add_parser("serve", help="Start the web UI + API server")
+    serve.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    serve.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    serve.add_argument("--reload", action="store_true", help="Enable auto-reload (development)")
+
     run = sub.add_parser("run", help="Run the Phase 1+2 pipeline (S1 → S2 → S3 → S5)")
     run.add_argument("--brief", required=True, help="Plain-English product description")
     run.add_argument(
@@ -159,11 +164,25 @@ async def _run(args: argparse.Namespace) -> None:
     print("=" * 60)
 
 
+def _serve(args: argparse.Namespace) -> None:
+    import uvicorn
+    print(f"\nMandrel UI → http://{args.host}:{args.port}\n")
+    uvicorn.run(
+        "mandrel.api.app:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        log_level="info",
+    )
+
+
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    if args.command == "run":
+    if args.command == "serve":
+        _serve(args)
+    elif args.command == "run":
         asyncio.run(_run(args))
     else:
         parser.print_help()
