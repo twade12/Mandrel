@@ -67,16 +67,19 @@ def _parse_spec(llm_output: str, raw_brief: str) -> ProductSpec:
     """Extract and validate a ProductSpec from the LLM's JSON response."""
     data = _extract_json(llm_output)
 
-    power_data = data.get("power") or {}
-    power = PowerBudget(
-        supply_voltage_v=float(power_data.get("supply_voltage_v", 3.3)),
-        max_current_ma=float(power_data.get("max_current_ma", 200)),
-        battery_capacity_mah=(
-            float(power_data["battery_capacity_mah"])
-            if power_data.get("battery_capacity_mah") is not None
-            else None
-        ),
-    )
+    power_data = data.get("power")
+    if power_data and isinstance(power_data, dict):
+        power: PowerBudget | None = PowerBudget(
+            supply_voltage_v=float(power_data.get("supply_voltage_v") or 3.3),
+            max_current_ma=float(power_data.get("max_current_ma") or 200),
+            battery_capacity_mah=(
+                float(power_data["battery_capacity_mah"])
+                if power_data.get("battery_capacity_mah") is not None
+                else None
+            ),
+        )
+    else:
+        power = None
 
     return ProductSpec(
         title=str(data.get("title", "Unnamed Design")),
