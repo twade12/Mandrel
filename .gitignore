@@ -1,2 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.uv/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+*.env.local
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Mandrel workspace (project artifacts go here)
+workspace/
+
+# Docker volumes (if bind-mounted locally)
+postgres_data/
+minio_data/
+
+# Keep spec and claude prompt out of OSS repo
 CLAUDE.md
 SPEC.md

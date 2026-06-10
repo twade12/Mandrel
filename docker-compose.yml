@@ -1,0 +1,81 @@
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mandrel
+      POSTGRES_PASSWORD: mandrel
+      POSTGRES_DB: mandrel
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mandrel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: mandrel
+      MINIO_ROOT_PASSWORD: mandrel123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Engine containers (opt-in: docker compose --profile engines up -d) ─────
+  # These GPL-licensed tools run out-of-process only; never linked into Mandrel.
+  # Adapters in mandrel/adapters/ exchange data with them via neutral files only.
+
+  kicad:
+    profiles: ["engines"]
+    # kicad-cli headless: erc, drc, export step/gerbers/pos
+    # Build from official KiCad source; no pre-built Docker image shipped here.
+    # See docs/engines/kicad-docker.md for a tested Dockerfile.
+    image: kicad/kicad:8.0
+    restart: "no"
+    volumes:
+      - ./workspace:/workspace
+    entrypoint: ["kicad-cli"]
+    healthcheck:
+      test: ["CMD", "kicad-cli", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  freerouting:
+    profiles: ["engines"]
+    # FreeRouting JAR: DSN in → SES out via Specctra interface
+    # See docs/engines/freerouting-docker.md for tested Dockerfile.
+    image: ghcr.io/freerouting/freerouting:latest
+    restart: "no"
+    volumes:
+      - ./workspace:/workspace
+
+  freecad:
+    profiles: ["engines"]
+    # FreeCAD headless: freecadcmd for STEP export and assembly views
+    # See docs/engines/freecad-docker.md for tested Dockerfile.
+    image: condaforge/mambaforge:latest
+    restart: "no"
+    command: ["freecadcmd"]
+    volumes:
+      - ./workspace:/workspace
+
+volumes:
+  postgres_data:
+  minio_data:
