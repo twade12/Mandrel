@@ -62,6 +62,7 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
     from mandrel.pipeline.s1_intent import IntentStage
     from mandrel.pipeline.s2_architecture import ArchitectureStage
     from mandrel.pipeline.s3_schematic import SchematicStage
+    from mandrel.pipeline.s4_layout import LayoutStage
     from mandrel.pipeline.s5_enclosure import EnclosureStage
     from mandrel.pipeline.s6_bom import BomStage
 
@@ -99,6 +100,7 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
             "s1_intent":       AutoApproveCheckpoint(),
             "s2_architecture": AutoApproveCheckpoint(),
             "s3_schematic":    AutoApproveCheckpoint(),
+            "s4_layout":       AutoApproveCheckpoint(),
             "s5_enclosure":    AutoApproveCheckpoint(),
             "s6_bom":          AutoApproveCheckpoint(),
         }
@@ -108,6 +110,7 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
             "s1_intent":       cp,
             "s2_architecture": cp,
             "s3_schematic":    cp,
+            "s4_layout":       cp,
             "s5_enclosure":    cp,
             "s6_bom":          cp,
         }
@@ -116,6 +119,7 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
         IntentStage(llm=llm),
         ArchitectureStage(llm=llm),
         SchematicStage(llm=llm),
+        LayoutStage(llm=llm),
         EnclosureStage(),
         BomStage(),
     ], checkpoints=checkpoints)

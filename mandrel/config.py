@@ -34,6 +34,9 @@ class Settings(BaseSettings):
 
     # Engine paths (out-of-process invocation only — GPL boundary)
     kicad_cli_path: str = "kicad-cli"
+    # Python interpreter that has pcbnew in its path (KiCad container or system install).
+    # Used for operations kicad-cli doesn't expose (SES import, placement scripts).
+    kicad_python_path: str = "python3"
     freerouting_jar_path: str = "freerouting.jar"
     freecad_cmd_path: str = "freecadcmd"
     ngspice_path: str = "ngspice"

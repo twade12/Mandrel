@@ -22,6 +22,7 @@ STAGE_LABELS: dict[str, str] = {
     "s1_intent":       "Extract Spec",
     "s2_architecture": "Architecture",
     "s3_schematic":    "Schematic + ERC",
+    "s4_layout":       "PCB Layout + DRC",
     "s5_enclosure":    "Enclosure",
     "s6_bom":          "BOM & Sourcing",
 }

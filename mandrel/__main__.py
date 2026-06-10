@@ -24,7 +24,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     serve = sub.add_parser("serve", help="Start the web UI + API server")
     serve.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
-    serve.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+    serve.add_argument("--port", type=int, default=8002, help="Bind port (default: 8000)")
     serve.add_argument("--reload", action="store_true", help="Enable auto-reload (development)")
 
     run = sub.add_parser("run", help="Run the Phase 1+2 pipeline (S1 → S2 → S3 → S5)")
@@ -63,6 +63,7 @@ async def _run(args: argparse.Namespace) -> None:
     from mandrel.pipeline.s1_intent import IntentStage
     from mandrel.pipeline.s2_architecture import ArchitectureStage
     from mandrel.pipeline.s3_schematic import SchematicStage
+    from mandrel.pipeline.s4_layout import LayoutStage
     from mandrel.pipeline.s5_enclosure import EnclosureStage
     from mandrel.pipeline.s6_bom import BomStage, _bom_to_table
 
@@ -97,6 +98,7 @@ async def _run(args: argparse.Namespace) -> None:
             "s1_intent":       AutoApproveCheckpoint(),
             "s2_architecture": AutoApproveCheckpoint(),
             "s3_schematic":    AutoApproveCheckpoint(),
+            "s4_layout":       AutoApproveCheckpoint(),
             "s5_enclosure":    AutoApproveCheckpoint(),
             "s6_bom":          AutoApproveCheckpoint(),
         }
@@ -105,6 +107,7 @@ async def _run(args: argparse.Namespace) -> None:
             "s1_intent":       CliCheckpoint("Review extracted product spec"),
             "s2_architecture": CliCheckpoint("Review proposed block-level architecture"),
             "s3_schematic":    CliCheckpoint("Review schematic + ERC result"),
+            "s4_layout":       CliCheckpoint("Review PCB layout + DRC result"),
             "s5_enclosure":    CliCheckpoint("Review enclosure clearance check"),
             "s6_bom":          CliCheckpoint("Review BOM — confirm all parts are in stock"),
         }
@@ -114,6 +117,7 @@ async def _run(args: argparse.Namespace) -> None:
             IntentStage(llm=llm),
             ArchitectureStage(llm=llm),
             SchematicStage(llm=llm),
+            LayoutStage(llm=llm),
             EnclosureStage(),
             BomStage(),
         ],

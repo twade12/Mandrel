@@ -164,3 +164,46 @@ RULES:
   and ERC() calls shown above.
 - Return ONLY the Python code, no markdown, no explanation.
 """
+
+# ── S4 — placement proposal for LLM-assisted PCB layout ──────────────────────
+
+S4_PLACEMENT_GEN = """\
+You are an expert PCB layout engineer. Propose component placements for the PCB
+described below and return a JSON array of placement objects.
+
+BOARD DIMENSIONS: {board_l_mm} mm × {board_w_mm} mm  (origin at top-left corner)
+FORM FACTOR: {form_factor}
+COMPONENTS (from netlist):
+{components_json}
+
+ARCHITECTURE (for context):
+{arch_json}
+
+OUTPUT FORMAT — return ONLY a JSON array, no markdown fences, no extra text:
+[
+  {{
+    "ref":          "<reference designator, e.g. U1>",
+    "x_mm":         <x position from left edge, float>,
+    "y_mm":         <y position from top edge, float>,
+    "rotation_deg": <0 | 90 | 180 | 270>,
+    "side":         "front"
+  }}
+]
+
+PLACEMENT RULES:
+1. All components must be on the "front" side unless stated otherwise.
+2. MCU (largest IC) should be centered on the board with a 2 mm keep-out margin
+   from the board edge on all sides.
+3. LDO and power components: place near the USB-C connector (typically the short
+   edge of the Feather board).
+4. Connectors: Feather standard has two rows of 0.1" headers along the long edges.
+   Place the USB-C receptacle at one short end.
+5. Decoupling capacitors: place within 0.5 mm of the IC VDD pin they serve.
+6. Pull-up resistors: place near the MCU I2C pins.
+7. Sensor ICs: spread along the remaining board area, at least 3 mm from each other.
+8. No component centroid may be within 1 mm of the board edge.
+9. No two component bounding boxes may overlap.
+10. Return every reference from the components list — do not omit any.
+
+Return ONLY the JSON array.
+"""

@@ -256,7 +256,7 @@
   <!-- ── Pipeline stages ────────────────────────────────────────────────── -->
   <div x-show="status !== 'idle'" class="space-y-3">
     <h2 class="text-xs uppercase tracking-widest muted">Pipeline</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-5 gap-2">
+    <div class="grid grid-cols-2 sm:grid-cols-6 gap-2">
       <template x-for="s in stages" :key="s.name">
         <div
           class="stage-pill rounded-lg p-3 flex flex-col gap-1"
@@ -460,6 +460,7 @@
         { num: 1, name: 's1_intent',       label: 'Extract Spec',   status: 'idle', violations: [] },
         { num: 2, name: 's2_architecture', label: 'Architecture',   status: 'idle', violations: [] },
         { num: 3, name: 's3_schematic',    label: 'Schematic+ERC',  status: 'idle', violations: [] },
+        { num: 4, name: 's4_layout',       label: 'PCB Layout+DRC', status: 'idle', violations: [] },
         { num: 5, name: 's5_enclosure',    label: 'Enclosure',      status: 'idle', violations: [] },
         { num: 6, name: 's6_bom',          label: 'BOM & Sourcing', status: 'idle', violations: [] },
       ],
