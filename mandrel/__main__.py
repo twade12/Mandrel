@@ -22,7 +22,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = p.add_subparsers(dest="command")
 
-    run = sub.add_parser("run", help="Run the Phase 1 pipeline (S1 → S3 → S5)")
+    run = sub.add_parser("run", help="Run the Phase 1+2 pipeline (S1 → S2 → S3 → S5)")
     run.add_argument("--brief", required=True, help="Plain-English product description")
     run.add_argument(
         "--form-factor",
@@ -56,6 +56,7 @@ async def _run(args: argparse.Namespace) -> None:
     from mandrel.core.workflow import Context, PipelineRunner
     from mandrel.llm.provider import OpenAICompatibleProvider
     from mandrel.pipeline.s1_intent import IntentStage
+    from mandrel.pipeline.s2_architecture import ArchitectureStage
     from mandrel.pipeline.s3_schematic import SchematicStage
     from mandrel.pipeline.s5_enclosure import EnclosureStage
 
@@ -87,20 +88,23 @@ async def _run(args: argparse.Namespace) -> None:
     # Checkpoints
     if args.auto_approve:
         checkpoints: dict = {
-            "s1_intent":    AutoApproveCheckpoint(),
-            "s3_schematic": AutoApproveCheckpoint(),
-            "s5_enclosure": AutoApproveCheckpoint(),
+            "s1_intent":      AutoApproveCheckpoint(),
+            "s2_architecture": AutoApproveCheckpoint(),
+            "s3_schematic":   AutoApproveCheckpoint(),
+            "s5_enclosure":   AutoApproveCheckpoint(),
         }
     else:
         checkpoints = {
-            "s1_intent":    CliCheckpoint("Review extracted product spec"),
-            "s3_schematic": CliCheckpoint("Review schematic + ERC result"),
-            "s5_enclosure": CliCheckpoint("Review enclosure clearance check"),
+            "s1_intent":      CliCheckpoint("Review extracted product spec"),
+            "s2_architecture": CliCheckpoint("Review proposed block-level architecture"),
+            "s3_schematic":   CliCheckpoint("Review schematic + ERC result"),
+            "s5_enclosure":   CliCheckpoint("Review enclosure clearance check"),
         }
 
     runner = PipelineRunner(
         stages=[
             IntentStage(llm=llm),
+            ArchitectureStage(llm=llm),
             SchematicStage(llm=llm),
             EnclosureStage(),
         ],
@@ -124,6 +128,10 @@ async def _run(args: argparse.Namespace) -> None:
     print("=" * 60)
     if final_state.spec:
         print(f"Spec     : {final_state.spec.title}")
+    if final_state.architecture:
+        n_blocks = len(final_state.architecture.blocks)
+        n_conns = len(final_state.architecture.connections)
+        print(f"Arch     : {n_blocks} blocks, {n_conns} connections")
     if final_state.schematic:
         erc = final_state.schematic.erc_result
         status = "CLEAN" if (erc and erc.passed) else "FAILED"

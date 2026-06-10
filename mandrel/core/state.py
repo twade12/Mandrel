@@ -85,7 +85,9 @@ class ProductSpec(BaseModel):
 class Block(BaseModel):
     id: str
     label: str
-    part: Part | None = None
+    proposed_mpn: str | None = None   # suggested by S2, verified in S6
+    kicad_lib: str | None = None      # "Library:Symbol" for S3 SKiDL generation
+    part: Part | None = None          # populated by S6 after distributor verification
 
 
 class Connection(BaseModel):

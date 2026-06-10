@@ -41,6 +41,57 @@ RULES:
 - Return null for any optional field you cannot determine from the brief
 """
 
+# ── S2 — ProductSpec → Architecture block diagram ────────────────────────────
+
+S2_ARCH_GEN = """\
+You are an expert hardware architect. Given the product specification below, propose a
+block-level architecture for the design and return it as a single JSON object.
+
+PRODUCT SPEC (JSON):
+{spec_json}
+
+FORM FACTOR: {form_factor}
+
+OUTPUT FORMAT — return ONLY this JSON object, no markdown fences, no extra text:
+{{
+  "blocks": [
+    {{
+      "id": "<short_snake_case_id>",
+      "label": "<human-readable label>",
+      "proposed_mpn": "<manufacturer part number>",
+      "kicad_lib": "<KiCad Library:Symbol reference>"
+    }}
+  ],
+  "connections": [
+    {{
+      "from_block": "<block_id>",
+      "to_block": "<block_id>",
+      "signal": "<NET_NAME>"
+    }}
+  ],
+  "rationale": "<2–4 sentences explaining the key architectural decisions>"
+}}
+
+KICAD SYMBOL REFERENCES (use exactly as shown):
+- RP2040:         MCU_RaspberryPi_RP2xxx:RP2040
+- MIC5219-3.3YM5: Regulator_Linear:MIC5219-3.3YM5
+- BME280:         Sensor_Pressure:BME280
+- ICM-42688-P:    Sensor_Motion:ICM-42688-P
+- USB-C:          Connector_USB:USB_C_Receptacle_USB2.0
+- Generic R:      Device:R
+- Generic C:      Device:C
+
+RULES:
+- For Feather form factor: MCU must be RP2040; include a 3.3 V LDO (MIC5219-3.3YM5) fed
+  from USB 5 V (VBUS), and a USB-C receptacle block.
+- Block id values must be valid Python identifiers (no spaces, no hyphens).
+- Every connection's from_block and to_block must match an id in the blocks list.
+- Include only blocks that are actually needed by the spec — no placeholders.
+- Signal names should be valid KiCad net names (no spaces; use underscores).
+- Return null for kicad_lib only when the part has no standard KiCad symbol.
+- Return ONLY the JSON — all explanation goes in the "rationale" field.
+"""
+
 # ── S3 — ProductSpec → SKiDL Python schematic ─────────────────────────────────
 
 S3_SKIDL_GEN = """\
@@ -49,6 +100,9 @@ script that implements the schematic described by the product specification belo
 
 PRODUCT SPEC (JSON):
 {spec_json}
+
+APPROVED ARCHITECTURE (from S2 — implement exactly these blocks and connections):
+{arch_json}
 
 FORM FACTOR: Adafruit Feather (50.8 mm × 22.86 mm, 3.3 V system)
 

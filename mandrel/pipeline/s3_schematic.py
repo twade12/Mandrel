@@ -53,6 +53,11 @@ class SchematicStage:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         spec_json = json.dumps(state.spec.model_dump(mode="json"), indent=2)
+        arch_json = (
+            json.dumps(state.architecture.model_dump(mode="json"), indent=2)
+            if state.architecture
+            else "null (no architecture from S2 — infer from spec)"
+        )
         violations_context = ""
         erc_result: VerifierResult | None = None
         skidl_script = ""
@@ -61,6 +66,7 @@ class SchematicStage:
             # 1. LLM generates (or repairs) the SKiDL script
             prompt = S3_SKIDL_GEN.format(
                 spec_json=spec_json,
+                arch_json=arch_json,
                 output_dir=str(output_dir),
             )
             if violations_context:
