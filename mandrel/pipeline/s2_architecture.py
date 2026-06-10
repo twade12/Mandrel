@@ -142,7 +142,7 @@ def _parse_architecture(llm_output: str) -> Architecture:
             proposed_mpn=b.get("proposed_mpn"),
             kicad_lib=b.get("kicad_lib"),
         )
-        for b in data.get("blocks", [])
+        for b in (data.get("blocks") or [])
     ]
 
     connections = [
@@ -151,7 +151,7 @@ def _parse_architecture(llm_output: str) -> Architecture:
             to_block=c["to_block"],
             signal=c["signal"],
         )
-        for c in data.get("connections", [])
+        for c in (data.get("connections") or [])
     ]
 
     return Architecture(blocks=blocks, connections=connections)
