@@ -43,15 +43,18 @@ class DistributorRef(BaseModel):
 class Part(BaseModel):
     """A component whose MPN has been confirmed real and in stock via distributor API.
 
-    No Part may enter DesignState.architecture.parts without in_stock=True and
-    at least one distributor_ref. This is the ground-every-part invariant (§0).
+    No Part may enter DesignState.bom without in_stock=True and at least one
+    distributor_ref. This is the ground-every-part invariant (§0).
+
+    reference/value/footprint are populated by S3 (schematic); manufacturer is
+    populated by S6 (sourcing). Both stages fill in their own fields.
     """
 
-    reference: str  # e.g. "U1", "C3"
     mpn: str
-    manufacturer: str
-    value: str
-    footprint: str
+    reference: str = ""          # e.g. "U1", "C3" — set by S3
+    manufacturer: str = ""       # set by S6 from distributor API
+    value: str = ""              # e.g. "100nF" — set by S3
+    footprint: str = ""          # KiCad footprint string — set by S3
     distributor_refs: list[DistributorRef] = []
     in_stock: bool = False
     unit_price_usd: float | None = None
@@ -150,6 +153,7 @@ class CostedBom(BaseModel):
     total_cost_usd: float | None = None
     all_in_stock: bool = False
     kicost_output_path: str | None = None
+    sourcing_verified: bool = False  # True only when real distributor API was used
 
 
 # ── S7: Handoff ───────────────────────────────────────────────────────────────

@@ -23,12 +23,14 @@ class Settings(BaseSettings):
     llm_model: str = "gemma4:26b"
     llm_api_key: str = ""
 
-    # Distributor API keys (empty = distributor integration disabled)
+    # Distributor API keys (empty = stub client used; real keys enable live grounding)
+    # Nexar / Octopart: register at nexar.com to get client_id + client_secret
+    nexar_client_id: str = ""
+    nexar_client_secret: str = ""
+    # Digikey / Mouser: reserved for future direct integrations
     digikey_client_id: str = ""
     digikey_client_secret: str = ""
     mouser_api_key: str = ""
-    octopart_api_key: str = ""
-    lcsc_api_key: str = ""
 
     # Engine paths (out-of-process invocation only — GPL boundary)
     kicad_cli_path: str = "kicad-cli"

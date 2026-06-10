@@ -59,6 +59,7 @@ async def _run(args: argparse.Namespace) -> None:
     from mandrel.pipeline.s2_architecture import ArchitectureStage
     from mandrel.pipeline.s3_schematic import SchematicStage
     from mandrel.pipeline.s5_enclosure import EnclosureStage
+    from mandrel.pipeline.s6_bom import BomStage, _bom_to_table
 
     # LLM provider
     model = args.ollama_model or settings.llm_model
@@ -88,17 +89,19 @@ async def _run(args: argparse.Namespace) -> None:
     # Checkpoints
     if args.auto_approve:
         checkpoints: dict = {
-            "s1_intent":      AutoApproveCheckpoint(),
+            "s1_intent":       AutoApproveCheckpoint(),
             "s2_architecture": AutoApproveCheckpoint(),
-            "s3_schematic":   AutoApproveCheckpoint(),
-            "s5_enclosure":   AutoApproveCheckpoint(),
+            "s3_schematic":    AutoApproveCheckpoint(),
+            "s5_enclosure":    AutoApproveCheckpoint(),
+            "s6_bom":          AutoApproveCheckpoint(),
         }
     else:
         checkpoints = {
-            "s1_intent":      CliCheckpoint("Review extracted product spec"),
+            "s1_intent":       CliCheckpoint("Review extracted product spec"),
             "s2_architecture": CliCheckpoint("Review proposed block-level architecture"),
-            "s3_schematic":   CliCheckpoint("Review schematic + ERC result"),
-            "s5_enclosure":   CliCheckpoint("Review enclosure clearance check"),
+            "s3_schematic":    CliCheckpoint("Review schematic + ERC result"),
+            "s5_enclosure":    CliCheckpoint("Review enclosure clearance check"),
+            "s6_bom":          CliCheckpoint("Review BOM — confirm all parts are in stock"),
         }
 
     runner = PipelineRunner(
@@ -107,6 +110,7 @@ async def _run(args: argparse.Namespace) -> None:
             ArchitectureStage(llm=llm),
             SchematicStage(llm=llm),
             EnclosureStage(),
+            BomStage(),
         ],
         checkpoints=checkpoints,
     )
@@ -144,6 +148,13 @@ async def _run(args: argparse.Namespace) -> None:
         print(f"Clearance: {status}")
         if final_state.enclosure.step_path:
             print(f"Enclosure: {final_state.enclosure.step_path}")
+    if final_state.bom:
+        bom = final_state.bom
+        verified = "LIVE" if bom.sourcing_verified else "STUB"
+        stock = "ALL IN STOCK" if bom.all_in_stock else "STOCK ISSUES"
+        cost = f"  est. ${bom.total_cost_usd:.2f}" if bom.total_cost_usd else ""
+        print(f"BOM      : {len(bom.lines)} parts, {stock} [{verified}]{cost}")
+        print(_bom_to_table(bom))
     print(f"\nStages run: {len(final_state.history)}")
     print("=" * 60)
 
