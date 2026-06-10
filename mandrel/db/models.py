@@ -27,7 +27,7 @@ class DesignStateRecord(SQLModel, table=True):
         default_factory=lambda: str(uuid.uuid4()),
         primary_key=True,
     )
-    project_id: str = Field(index=True)
+    project_id: str = Field(unique=True)
     state: dict = Field(sa_column=Column(JSONB, nullable=False))
     created_at: datetime = Field(
         default_factory=_utcnow,
