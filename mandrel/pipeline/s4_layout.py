@@ -139,6 +139,7 @@ class LayoutStage:
                 board_l_mm=BOARD_LENGTH_MM,
                 board_w_mm=BOARD_WIDTH_MM,
                 footprint_lib_path=fp_lib_path,
+                dsn_path=dsn_path,
             )
             script_path.write_text(script_src, encoding="utf-8")
             if script_path not in artifacts:
@@ -164,13 +165,15 @@ class LayoutStage:
             if pcb_path.exists() and pcb_path not in artifacts:
                 artifacts.append(pcb_path)
 
-            await ctx.progress(self.name, "Exporting Specctra DSN for autorouting…")
-            try:
-                self._kicad.export_dsn(pcb_path, dsn_path)
-                if dsn_path not in artifacts:
-                    artifacts.append(dsn_path)
-            except KiCadCLIError as exc:
-                return _engine_error(state, artifacts, "DSN_EXPORT_FAILED", exc)
+            # The placement script exports the DSN itself (the netclass rules
+            # only exist on its in-memory board object).
+            if not dsn_path.exists():
+                return _engine_error(
+                    state, artifacts, "DSN_EXPORT_FAILED",
+                    RuntimeError("placement script did not produce a DSN file"),
+                )
+            if dsn_path not in artifacts:
+                artifacts.append(dsn_path)
 
             if self._freerouting.is_available():
                 await ctx.progress(
@@ -544,6 +547,7 @@ _PLACEMENT_SCRIPT_TEMPLATE = textwrap.dedent("""\
     BOARD_L_MM = {board_l_mm}
     BOARD_W_MM = {board_w_mm}
     PCB_PATH   = r"{pcb_path}"
+    DSN_PATH   = r"{dsn_path}"
     FP_LIB_DIR = r"{footprint_lib_path}"
 
     COMPONENTS = {components_json}
@@ -616,7 +620,25 @@ _PLACEMENT_SCRIPT_TEMPLATE = textwrap.dedent("""\
         print("ERROR: no footprints could be loaded", file=sys.stderr)
         raise SystemExit(1)
 
+    # 5-mil rules (0.15 mm track / 0.127 mm clearance): required for escape
+    # routing on 0.4 mm-pitch QFN packages, within standard fab capability.
+    # Must be set BEFORE Save so the .kicad_pro serializes them — netclasses
+    # live in the project file and kicad-cli DRC reads them from there.
+    nc = board.GetDesignSettings().m_NetSettings.GetDefaultNetclass()
+    nc.SetTrackWidth(pcbnew.FromMM(0.15))
+    nc.SetClearance(pcbnew.FromMM(0.127))
+    nc.SetViaDiameter(pcbnew.FromMM(0.6))
+    nc.SetViaDrill(pcbnew.FromMM(0.3))
+
     board.Save(PCB_PATH)
+
+    # Export the Specctra DSN here, while the netclass is set on the live
+    # board object — a fresh LoadBoard in another process would reset the
+    # rules to defaults and FreeRouting could not escape the QFN.
+    if DSN_PATH:
+        if not pcbnew.ExportSpecctraDSN(board, DSN_PATH):
+            print("ERROR: DSN export failed", file=sys.stderr)
+            raise SystemExit(1)
 
     # Fine-pitch QFN packages (e.g. RP2040, 0.4 mm pitch) inevitably trigger
     # solder_mask_bridge with the default mask expansion; fabs resolve these
@@ -649,6 +671,7 @@ def _build_placement_script(
     board_l_mm: float,
     board_w_mm: float,
     footprint_lib_path: str,
+    dsn_path: Path | None = None,
 ) -> str:
     """Generate a pcbnew Python script that builds a .kicad_pcb from the parsed
     netlist (components + nets) and the LLM's placement proposal.
@@ -660,6 +683,7 @@ def _build_placement_script(
         board_l_mm=board_l_mm,
         board_w_mm=board_w_mm,
         pcb_path=str(pcb_path),
+        dsn_path=str(dsn_path) if dsn_path else "",
         footprint_lib_path=footprint_lib_path,
         components_json=json.dumps(components, indent=2),
         placements_json=json.dumps(placements, indent=2),
