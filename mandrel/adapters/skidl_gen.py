@@ -40,19 +40,28 @@ class SKiDLAdapter:
         script_path = output_dir / "_skidl_gen.py"
 
         # Prepend env setup so the subprocess can find KiCad symbol libraries.
+        # SKiDL keys its lookup on the KiCad-version-specific variable
+        # (KICAD9_SYMBOL_DIR for skidl 2.x), so set every variant.
         preamble = textwrap.dedent(f"""\
             import os, sys
-            os.environ.setdefault("KICAD_SYMBOL_DIR", {self._lib_path!r})
-            os.environ.setdefault(
+            for _var in (
+                "KICAD_SYMBOL_DIR", "KICAD5_SYMBOL_DIR", "KICAD6_SYMBOL_DIR",
+                "KICAD7_SYMBOL_DIR", "KICAD8_SYMBOL_DIR", "KICAD9_SYMBOL_DIR",
                 "SKIDL_KICAD_LIB_SEARCH_PATHS",
-                {self._lib_path!r},
-            )
+            ):
+                os.environ.setdefault(_var, {self._lib_path!r})
         """)
         script_path.write_text(preamble + script, encoding="utf-8")
 
         env = {
             **os.environ,
-            "KICAD_SYMBOL_DIR": self._lib_path,
+            **{
+                var: self._lib_path
+                for var in (
+                    "KICAD_SYMBOL_DIR", "KICAD5_SYMBOL_DIR", "KICAD6_SYMBOL_DIR",
+                    "KICAD7_SYMBOL_DIR", "KICAD8_SYMBOL_DIR", "KICAD9_SYMBOL_DIR",
+                )
+            },
         }
         result = subprocess.run(
             [sys.executable, str(script_path)],

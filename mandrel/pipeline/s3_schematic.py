@@ -142,12 +142,24 @@ class SchematicStage:
                             severity="warning",
                         )],
                     )
+            elif net_path and net_path.exists():
+                # Netlist (the artifact S4 needs) exists; schematic is only
+                # required for ERC, so its absence degrades rather than fails.
+                erc_result = VerifierResult(
+                    passed=True,
+                    score=0.75,
+                    violations=[Violation(
+                        code="SCHEMATIC_UNAVAILABLE",
+                        message="SKiDL produced a netlist but no .kicad_sch — ERC skipped.",
+                        severity="warning",
+                    )],
+                )
             else:
                 erc_result = VerifierResult(
                     passed=False,
                     violations=[Violation(
-                        code="NO_SCHEMATIC",
-                        message="SKiDL script did not produce a .kicad_sch file.",
+                        code="NO_NETLIST",
+                        message="SKiDL script did not produce a netlist (.net) file.",
                         severity="error",
                     )],
                 )

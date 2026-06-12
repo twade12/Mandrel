@@ -169,6 +169,14 @@ class PipelineRunner:
             "state": state.model_dump(mode="json"),
         })
 
+        # Verification-first gate (spec §0): a stage whose deterministic verifier
+        # failed must not let the pipeline advance.
+        if vr is not None and not vr.passed:
+            errors = "; ".join(
+                f"{v.code}: {v.message}" for v in vr.violations if v.severity == "error"
+            ) or "verifier failed"
+            raise RuntimeError(f"Stage '{label}' failed verification — {errors}")
+
         # Fire checkpoint if one is registered for this stage
         if stage.name in self.checkpoints:
             cp = self.checkpoints[stage.name]

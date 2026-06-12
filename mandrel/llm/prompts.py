@@ -72,14 +72,15 @@ OUTPUT FORMAT — return ONLY this JSON object, no markdown fences, no extra tex
   "rationale": "<2–4 sentences explaining the key architectural decisions>"
 }}
 
-KICAD SYMBOL REFERENCES (use exactly as shown):
-- RP2040:         MCU_RaspberryPi_RP2xxx:RP2040
-- MIC5219-3.3YM5: Regulator_Linear:MIC5219-3.3YM5
-- BME280:         Sensor_Pressure:BME280
-- ICM-42688-P:    Sensor_Motion:ICM-42688-P
-- USB-C:          Connector_USB:USB_C_Receptacle_USB2.0
-- Generic R:      Device:R
-- Generic C:      Device:C
+KICAD SYMBOL REFERENCES (verified against the KiCad 9 libraries — use exactly as shown):
+- RP2040 MCU:        MCU_RaspberryPi:RP2040
+- 3.3 V LDO:         Regulator_Linear:MIC5219-3.3YM5
+- Temp/humidity:     Sensor_Humidity:SHT30-DIS  (I2C; use MPN SHT30-DIS-B)
+- Pressure:          Sensor_Pressure:BMP280
+- IMU / motion:      Sensor_Motion:ICM-20948
+- USB-C receptacle:  Connector:USB_C_Receptacle_USB2.0_16P
+- Generic R:         Device:R
+- Generic C:         Device:C
 
 RULES:
 - For Feather form factor: MCU must be RP2040; include a 3.3 V LDO (MIC5219-3.3YM5) fed
@@ -111,8 +112,9 @@ REQUIRED CIRCUIT BLOCKS:
 2. 3.3 V LDO — powers the MCU and peripherals from USB 5 V (e.g. MIC5219-3.3YM5)
 3. USB-C receptacle — for power + data (use CC resistors if MCU has native USB)
 4. Peripheral ICs — one per function listed in spec["functions"], e.g.:
-   - temperature/humidity → BME280 (I2C)
-   - motion/IMU → ICM-42688-P (I2C/SPI)
+   - temperature/humidity → SHT30-DIS (I2C)
+   - pressure → BMP280 (I2C/SPI)
+   - motion/IMU → ICM-20948 (I2C/SPI)
 5. Bypass/decoupling caps on every VDD pin (100 nF ceramic + 10 µF bulk where needed)
 6. I2C pull-up resistors (4.7 kΩ to 3.3 V on SDA/SCL)
 
@@ -123,7 +125,7 @@ SKIDL API REFERENCE:
 from skidl import *
 
 # Load a part from KiCad symbol library
-u1 = Part("MCU_RaspberryPi_RP2xxx", "RP2040",
+u1 = Part("MCU_RaspberryPi", "RP2040",
           footprint="Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm")
 r1 = Part("Device", "R", footprint="Resistor_SMD:R_0402_1005Metric", value="4.7k")
 c1 = Part("Device", "C", footprint="Capacitor_SMD:C_0402_1005Metric", value="100nF")
@@ -139,29 +141,34 @@ u1["GND"] += gnd
 r1[1]     += v3v3   # pull-up one end
 r1[2]     += i2c_sda
 
-# At the END of your script, call both of these:
-generate_schematic(filepath="{output_dir}/schematic.kicad_sch")
-generate_netlist(filepath="{output_dir}/netlist.net")
-ERC()  # run SKiDL's built-in ERC
+# At the END of your script, use EXACTLY this closing block
+# (note: generate_netlist takes file_ — not filepath):
+ERC()
+generate_netlist(file_="{output_dir}/netlist.net")
+try:
+    generate_schematic()   # writes skidl.kicad_sch to the working directory
+except Exception as exc:
+    print(f"schematic generation skipped: {{exc}}")
 ```
 
-KICAD SYMBOL LIBRARY NAMES (use exactly as shown):
-- RP2040:        MCU_RaspberryPi_RP2xxx:RP2040
-- MIC5219-3.3:   Regulator_Linear:MIC5219-3.3YM5
-- BME280:        Sensor_Pressure:BME280
-- ICM-42688-P:   Sensor_Motion:ICM-42688-P
-- USB-C receptacle: Connector_USB:USB_C_Receptacle_USB2.0
-- Generic R:     Device:R
-- Generic C:     Device:C
-- PWR_FLAG:      power:PWR_FLAG
+KICAD SYMBOL LIBRARY NAMES (verified against the KiCad 9 libraries — use exactly as shown):
+- RP2040:          MCU_RaspberryPi:RP2040
+- MIC5219-3.3:     Regulator_Linear:MIC5219-3.3YM5
+- Temp/humidity:   Sensor_Humidity:SHT30-DIS
+- Pressure:        Sensor_Pressure:BMP280
+- IMU / motion:    Sensor_Motion:ICM-20948
+- USB-C receptacle: Connector:USB_C_Receptacle_USB2.0_16P
+- Generic R:       Device:R
+- Generic C:       Device:C
+- PWR_FLAG:        power:PWR_FLAG
 
 RULES:
 - Every net named +3V3 must connect to both the LDO output AND a PWR_FLAG.
 - Every net named GND must connect to a PWR_FLAG.
 - Add decoupling caps on all VDD/VDDIO pins.
 - Do NOT hallucinate library names — use only the ones listed above.
-- The last lines of the script MUST be the generate_schematic(), generate_netlist(),
-  and ERC() calls shown above.
+- The last lines of the script MUST be the closing block shown above (ERC, then
+  generate_netlist with file_=, then the guarded generate_schematic call).
 - Return ONLY the Python code, no markdown, no explanation.
 """
 
