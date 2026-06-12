@@ -3,18 +3,20 @@
 Parses the JSON report produced by `kicad-cli pcb drc --format json`
 into a VerifierResult.
 
-KiCad DRC JSON structure (8.0):
+KiCad 9 DRC JSON structure (verified against a real 9.0.9 report — there
+is NO top-level errors/warnings count):
   {
-    "errors": <int>,
-    "warnings": <int>,
+    "$schema": ..., "kicad_version": ..., "source": ...,
     "violations": [
       {
-        "type": "clearance" | "footprint" | ...,
+        "type": "clearance" | "shorting_items" | ...,
         "description": "...",
         "severity": "error" | "warning",
         "items": [{"description": ..., "pos": {"x": ..., "y": ...}}, ...]
       }
-    ]
+    ],
+    "unconnected_items": [ ...same shape... ],   # unrouted connections
+    "schematic_parity": [ ...same shape... ]
   }
 """
 
@@ -44,24 +46,32 @@ class DRCVerifier:
                 )],
             )
 
-        errors   = int(data.get("errors", 0))
-        items    = data.get("violations", []) or data.get("items", [])
-
         violations: list[Violation] = []
-        for item in items:
-            severity = item.get("severity", "error")
-            pos_info = ""
-            if item.get("items"):
-                first = item["items"][0]
-                pos = first.get("pos", {})
-                if pos:
-                    pos_info = f" @ ({pos.get('x', '?')}, {pos.get('y', '?')})"
-            violations.append(Violation(
-                code=item.get("type", "DRC").upper().replace(" ", "_"),
-                message=item.get("description", str(item)) + pos_info,
-                severity=severity,
-                location=pos_info.strip() or None,
-            ))
+
+        def add_items(items: list, default_code: str) -> None:
+            for item in items:
+                severity = item.get("severity", "error")
+                pos_info = ""
+                if item.get("items"):
+                    first = item["items"][0]
+                    pos = first.get("pos", {})
+                    if pos:
+                        pos_info = f" @ ({pos.get('x', '?')}, {pos.get('y', '?')})"
+                violations.append(Violation(
+                    code=item.get("type", default_code).upper().replace(" ", "_"),
+                    message=item.get("description", str(item)) + pos_info,
+                    severity=severity,
+                    location=pos_info.strip() or None,
+                ))
+
+        add_items(data.get("violations", []) or data.get("items", []), "DRC")
+        add_items(data.get("unconnected_items", []), "UNCONNECTED")
+        add_items(data.get("schematic_parity", []), "PARITY")
+
+        # Count errors from the parsed items; KiCad 9 has no top-level count.
+        # Fall back to a legacy top-level "errors" field if one exists.
+        errors = sum(1 for v in violations if v.severity == "error")
+        errors = max(errors, int(data.get("errors", 0)))
 
         passed = errors == 0
         score  = 1.0 if passed else max(0.0, 1.0 - errors * 0.1)
