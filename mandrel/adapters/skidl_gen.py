@@ -51,6 +51,23 @@ class SKiDLAdapter:
                 "SKIDL_KICAD_LIB_SEARCH_PATHS",
             ):
                 os.environ.setdefault(_var, {self._lib_path!r})
+
+            # Normalize a common LLM slip: Part("Lib:Symbol", ...) instead of
+            # Part("Lib", "Symbol", ...). Patch before the script's
+            # `from skidl import *` so the wrapped Part is what gets imported.
+            import skidl as _skidl
+            _OrigPart = _skidl.Part
+
+            def _NormalizedPart(lib=None, name=None, *args, **kwargs):
+                if isinstance(lib, str) and ":" in lib:
+                    _lib, _sym = lib.split(":", 1)
+                    if name is None or name == _sym or name == lib:
+                        lib, name = _lib, _sym
+                    else:
+                        lib = _lib
+                return _OrigPart(lib, name, *args, **kwargs)
+
+            _skidl.Part = _NormalizedPart
         """)
         script_path.write_text(preamble + script, encoding="utf-8")
 

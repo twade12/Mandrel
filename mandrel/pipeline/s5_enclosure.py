@@ -48,6 +48,25 @@ class EnclosureStage:
 
         form_factor = state.constraints.form_factor if state.constraints else FormFactor.CUSTOM
 
+        # Graceful degradation: build123d needs Python ≤ 3.13 (cadquery-ocp
+        # wheels). Without it, warn and continue so the spine stays runnable.
+        if not self._cad.is_available():
+            return StageResult(
+                state=state,
+                artifacts=[],
+                verifier_result=VerifierResult(
+                    passed=True,
+                    score=0.5,
+                    violations=[Violation(
+                        code="ENCLOSURE_UNAVAILABLE",
+                        message="S5 skipped: build123d is not installed in this "
+                                "interpreter (requires Python ≤ 3.13). "
+                                "Install with: uv sync --extra cad",
+                        severity="warning",
+                    )],
+                ),
+            )
+
         # 1. Obtain board STEP
         board_step = _get_board_step(state, ctx, self._cad, output_dir, form_factor)
 

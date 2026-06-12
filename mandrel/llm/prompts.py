@@ -135,11 +135,20 @@ vbus = Net("VBUS")    # USB 5 V input
 v3v3 = Net("+3V3")   # regulated 3.3 V rail
 gnd  = Net("GND")
 
-# Connect pins
+# Connect pins — address IC/connector pins by NAME, only R/C by integer.
+# (USB-C and QFN pin "numbers" are strings like A6/B7; integer indexing
+# returns None and crashes.)
 u1["VDD"] += v3v3
 u1["GND"] += gnd
-r1[1]     += v3v3   # pull-up one end
+r1[1]     += v3v3   # 2-pin R/C may use [1] and [2]
 r1[2]     += i2c_sda
+
+# USB-C receptacle: pin names are VBUS, GND, CC1, CC2, D+, D-, SHIELD
+usb["VBUS"]   += vbus
+usb["GND"]    += gnd
+usb["SHIELD"] += gnd
+usb["CC1"]    += cc1   # 5.1k pull-down to GND (UFP sink)
+usb["CC2"]    += cc2   # 5.1k pull-down to GND
 
 # At the END of your script, use EXACTLY this closing block
 # (note: generate_netlist takes file_ — not filepath):
@@ -162,10 +171,31 @@ KICAD SYMBOL LIBRARY NAMES (verified against the KiCad 9 libraries — use exact
 - Generic C:       Device:C
 - PWR_FLAG:        power:PWR_FLAG
 
+VERIFIED PIN NAMES (use exactly these — no other names exist on these symbols):
+- RP2040: IOVDD, DVDD, USB_VDD, ADC_AVDD, VREG_VIN, VREG_VOUT, GND,
+  GPIO0..GPIO29, USB_DP, USB_DM, XIN, XOUT, RUN, SWCLK, SWDIO, TESTEN,
+  QSPI_SCLK, QSPI_SD0..QSPI_SD3, ~{{QSPI_SS}}.
+  Power: IOVDD/USB_VDD/ADC_AVDD/VREG_VIN → +3V3; VREG_VOUT → DVDD; GND → GND;
+  TESTEN → GND; RUN → 10k pull-up to +3V3. I2C: pick GPIO4 (SDA) and GPIO5 (SCL).
+- MIC5219-3.3YM5: IN, OUT, GND, EN, BP.  (EN → IN; BP → 470 pF cap to GND or leave)
+- SHT30-DIS: VDD, VSS, SDA, SCL, ADDR, ALERT, R, ~{{RESET}}.
+  (VSS → GND; ADDR → GND; nRESET/R may float)
+- BMP280: VDD, VDDIO, GND, SCK, SDI, SDO, CSB.
+  (I2C mode: SCK=SCL, SDI=SDA, CSB → VDDIO, SDO → GND)
+- ICM-20948: VDD, VDDIO, GND, SCL/SCLK, SDA/SDI, SDO/AD0, INT1, REGOUT, FSYNC,
+  AUX_CL, AUX_DA, ~{{CS}}.  (I2C mode: ~{{CS}} → VDDIO; REGOUT → 100 nF to GND)
+- USB_C_Receptacle_USB2.0_16P: VBUS, GND, SHIELD, CC1, CC2, D+, D-, SBU1, SBU2.
+- PWR_FLAG: one pin — flag[1].
+
 RULES:
 - Every net named +3V3 must connect to both the LDO output AND a PWR_FLAG.
 - Every net named GND must connect to a PWR_FLAG.
 - Add decoupling caps on all VDD/VDDIO pins.
+- Address pins on ICs and connectors by NAME (u["VDD"]); integer indexing is
+  allowed only on 2-pin R/C parts.
+- Part() takes library and symbol as SEPARATE arguments:
+  Part("Connector", "USB_C_Receptacle_USB2.0_16P") — never the combined
+  "Lib:Symbol" string.
 - Do NOT hallucinate library names — use only the ones listed above.
 - The last lines of the script MUST be the closing block shown above (ERC, then
   generate_netlist with file_=, then the guarded generate_schematic call).

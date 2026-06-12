@@ -22,6 +22,11 @@ class Build123dAdapter:
     def __init__(self, timeout: int = 120) -> None:
         self._timeout = timeout
 
+    def is_available(self) -> bool:
+        """True if build123d is importable in the script interpreter."""
+        import importlib.util
+        return importlib.util.find_spec("build123d") is not None
+
     # ── Generic script runner ─────────────────────────────────────────────────
 
     def run_script(self, script: str, output_dir: Path) -> dict[str, Path]:
