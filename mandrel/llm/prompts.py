@@ -223,7 +223,8 @@ described below and return a JSON array of placement objects.
 
 BOARD DIMENSIONS: {board_l_mm} mm × {board_w_mm} mm  (origin at top-left corner)
 FORM FACTOR: {form_factor}
-COMPONENTS (from netlist):
+COMPONENTS (from netlist; "size_mm": [width, height] is each part's real
+courtyard bounding box, measured from its KiCad footprint):
 {components_json}
 
 ARCHITECTURE (for context):
@@ -248,12 +249,17 @@ PLACEMENT RULES:
    edge of the Feather board).
 4. Connectors: Feather standard has two rows of 0.1" headers along the long edges.
    Place the USB-C receptacle at one short end.
-5. Decoupling capacitors: place within 0.5 mm of the IC VDD pin they serve.
-6. Pull-up resistors: place near the MCU I2C pins.
+5. Decoupling capacitors: place 1.5–3 mm from the IC they serve (NOT inside its
+   courtyard — the IC body occupies its full size_mm).
+6. Pull-up resistors: place near (not under) the MCU.
 7. Sensor ICs: spread along the remaining board area, at least 3 mm from each other.
-8. No component centroid may be within 1 mm of the board edge.
-9. No two component bounding boxes may overlap.
-10. Return every reference from the components list — do not omit any.
+8. Every part's full courtyard must stay inside the board: for each part,
+   x_mm must be within [size_w/2 + 1, board_length − size_w/2 − 1], same for y.
+9. NO OVERLAP — this is the most-violated rule. For EVERY pair of parts A and B:
+   |xA − xB| ≥ (wA + wB)/2 + 0.5  OR  |yA − yB| ≥ (hA + hB)/2 + 0.5
+   where [w, h] is each part's size_mm. Check every pair before answering.
+10. Use the whole board area — do not cluster parts in one corner.
+11. Return every reference from the components list — do not omit any.
 
 Return ONLY the JSON array.
 """
