@@ -36,6 +36,7 @@ class SKiDLAdapter:
 
         The script must call generate_schematic() and generate_netlist() before exit.
         """
+        output_dir = output_dir.resolve()  # subprocess cwd — relative paths double up
         output_dir.mkdir(parents=True, exist_ok=True)
         script_path = output_dir / "_skidl_gen.py"
 

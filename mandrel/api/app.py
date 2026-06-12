@@ -89,7 +89,9 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
         constraints=Constraints(form_factor=form_factor),
     )
 
-    project_dir = settings.workspace_dir / state.project_id
+    # Resolve to an absolute path: stages run subprocesses with cwd set to
+    # their output dir, where relative paths would double up.
+    project_dir = (settings.workspace_dir / state.project_id).resolve()
     project_dir.mkdir(parents=True, exist_ok=True)
 
     # Update run_ctx with resolved project_id

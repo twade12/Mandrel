@@ -89,7 +89,7 @@ async def _run(args: argparse.Namespace) -> None:
         Path(args.project_dir)
         if args.project_dir
         else settings.workspace_dir / state.project_id
-    )
+    ).resolve()
     project_dir.mkdir(parents=True, exist_ok=True)
     print(f"\nProject ID : {state.project_id}")
     print(f"Output dir : {project_dir}\n")
