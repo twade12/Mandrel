@@ -39,3 +39,5 @@ minio_data/
 # Keep spec and claude prompt out of OSS repo
 CLAUDE.md
 SPEC.md
+_skidl_gen.*
+skidl_REPL.*
