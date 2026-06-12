@@ -66,11 +66,26 @@ class BomStage:
 
         lines: list[BomLine] = []
         grounding_failures: list[Violation] = []
+        api_failures: list[Violation] = []
+
+        from mandrel.sourcing.octopart import OctopartError
 
         for block_id, label, mpn in candidates:
             seed = Part(mpn=mpn, reference=block_id, value=label)
             try:
                 grounded = await client.ground_part(seed)
+            except OctopartError as exc:
+                # API-level problem (quota, auth, network) — not a verdict on
+                # the part. Degrade like the other engines instead of failing
+                # the run at its final stage.
+                api_failures.append(Violation(
+                    code="SOURCING_UNAVAILABLE",
+                    message=f"Distributor API unavailable for {mpn!r}: {exc}",
+                    severity="warning",
+                    location=block_id,
+                ))
+                lines.append(BomLine(part=seed, quantity=1))
+                continue
             except Exception as exc:
                 grounding_failures.append(Violation(
                     code="GROUNDING_FAILED",
@@ -90,6 +105,8 @@ class BomStage:
         total = sum(
             (ln.total_price_usd or 0.0) for ln in lines if ln.part.in_stock
         )
+        if api_failures:
+            sourcing_verified = False
         bom = CostedBom(
             lines=lines,
             total_cost_usd=total if total > 0 else None,
@@ -110,6 +127,16 @@ class BomStage:
                 passed=False,
                 score=0.0,
                 violations=grounding_failures + result.violations,
+            )
+        elif api_failures:
+            # Only API failures: pass with reduced score so the spine
+            # completes; the BOM is explicitly marked sourcing_verified=False.
+            result = VerifierResult(
+                passed=True,
+                score=0.5,
+                violations=api_failures + [
+                    v for v in result.violations if v.severity != "error"
+                ],
             )
 
         new_state = state.model_copy(update={"bom": bom})

@@ -18,6 +18,8 @@ from mandrel.core.state import DistributorRef, Part
 _TOKEN_URL = "https://identity.nexar.com/connect/token"
 _GRAPHQL_URL = "https://api.nexar.com/graphql"
 
+# currency is a FIELD of SupPrice, not an argument (verified against the live
+# schema); convertedPrice is the USD-converted value.
 _SEARCH_QUERY = """
 query SearchMPN($q: String!, $limit: Int) {
   supSearch(q: $q, limit: $limit) {
@@ -30,7 +32,7 @@ query SearchMPN($q: String!, $limit: Int) {
           offers {
             sku
             inventoryLevel
-            prices(currency: USD) { price quantity }
+            prices { price currency quantity convertedPrice convertedCurrency }
           }
         }
       }
@@ -41,7 +43,18 @@ query SearchMPN($q: String!, $limit: Int) {
 
 
 class OctopartError(RuntimeError):
-    pass
+    """API-level failure (auth, quota, schema, network) — not a sourcing verdict."""
+
+
+def _usd_price(prices: list[dict]) -> float | None:
+    """Lowest-quantity USD price; falls back to the converted price."""
+    for p in prices:
+        if p.get("currency") == "USD" and p.get("price") is not None:
+            return float(p["price"])
+    for p in prices:
+        if p.get("convertedCurrency") == "USD" and p.get("convertedPrice") is not None:
+            return float(p["convertedPrice"])
+    return None
 
 
 class OctopartClient:
@@ -105,8 +118,7 @@ class OctopartClient:
                 for offer in seller.get("offers", []):
                     sku = offer.get("sku", "")
                     stock = offer.get("inventoryLevel", 0) or 0
-                    prices = offer.get("prices", [])
-                    price = float(prices[0]["price"]) if prices else None
+                    price = _usd_price(offer.get("prices") or [])
                     refs.append(DistributorRef(
                         distributor=dist_name.lower(),
                         sku=sku,
