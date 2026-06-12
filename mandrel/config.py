@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     # Docker default: /usr/share/kicad/symbols
     # macOS KiCad app: /Applications/KiCad/KiCad.app/Contents/SharedSupport/symbols
     kicad_lib_path: str = "/usr/share/kicad/symbols"
+    # KiCad footprint library path (S4 placement loads .pretty dirs from here)
+    kicad_footprint_path: str = "/usr/share/kicad/footprints"
 
 
 settings = Settings()

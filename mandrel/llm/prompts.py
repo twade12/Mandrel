@@ -187,6 +187,19 @@ VERIFIED PIN NAMES (use exactly these — no other names exist on these symbols)
 - USB_C_Receptacle_USB2.0_16P: VBUS, GND, SHIELD, CC1, CC2, D+, D-, SBU1, SBU2.
 - PWR_FLAG: one pin — flag[1].
 
+VERIFIED FOOTPRINTS (use exactly these in the footprint= argument — symbol
+names are NOT footprint names):
+- RP2040:    Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm
+- MIC5219 (SOT-23-5): Package_TO_SOT_SMD:SOT-23-5
+- SHT30-DIS: Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm
+- BMP280:    Package_LGA:Bosch_LGA-8_2.5x2.5mm_P0.65mm_ClockwisePinNumbering
+- ICM-20948: Sensor_Motion:InvenSense_QFN-24_3x3mm_P0.4mm
+- USB-C 16P: Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal
+- R 0402:    Resistor_SMD:R_0402_1005Metric
+- C 0402:    Capacitor_SMD:C_0402_1005Metric
+- C 0603:    Capacitor_SMD:C_0603_1608Metric
+- PWR_FLAG:  no footprint (virtual part — omit the footprint= argument)
+
 RULES:
 - Every net named +3V3 must connect to both the LDO output AND a PWR_FLAG.
 - Every net named GND must connect to a PWR_FLAG.

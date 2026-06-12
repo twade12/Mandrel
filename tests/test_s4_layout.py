@@ -216,14 +216,27 @@ def test_freerouting_raises_when_unavailable(tmp_path: Path):
 # ── _build_placement_script ───────────────────────────────────────────────────
 
 
+SAMPLE_COMPONENTS = [
+    {"ref": "U1", "value": "RP2040", "footprint": "Package_DFN_QFN:QFN-56"},
+    {"ref": "U2", "value": "MIC5219", "footprint": "Package_TO_SOT_SMD:SOT-23-5"},
+    {"ref": "C1", "value": "100nF", "footprint": "Capacitor_SMD:C_0402"},
+]
+
+SAMPLE_NETS = [
+    {"name": "+3V3", "nodes": [["U1", "1"], ["U2", "3"]]},
+    {"name": "GND", "nodes": [["U1", "2"]]},
+]
+
+
 def test_build_placement_script_contains_board_dims(tmp_path: Path):
     script = _build_placement_script(
-        netlist_path=tmp_path / "netlist.net",
         pcb_path=tmp_path / "board.kicad_pcb",
+        components=SAMPLE_COMPONENTS,
+        nets=SAMPLE_NETS,
         placements=SAMPLE_PLACEMENTS,
         board_l_mm=50.8,
         board_w_mm=22.86,
-        kicad_lib_path="/usr/share/kicad/symbols",
+        footprint_lib_path="/usr/share/kicad/footprints",
     )
     assert "50.8" in script
     assert "22.86" in script
@@ -232,15 +245,49 @@ def test_build_placement_script_contains_board_dims(tmp_path: Path):
 
 def test_build_placement_script_embeds_placements(tmp_path: Path):
     script = _build_placement_script(
-        netlist_path=tmp_path / "netlist.net",
         pcb_path=tmp_path / "board.kicad_pcb",
+        components=SAMPLE_COMPONENTS,
+        nets=SAMPLE_NETS,
         placements=SAMPLE_PLACEMENTS,
         board_l_mm=50.8,
         board_w_mm=22.86,
-        kicad_lib_path="",
+        footprint_lib_path="",
     )
     assert '"U1"' in script
     assert "25.0" in script
+
+
+def test_build_placement_script_is_valid_python(tmp_path: Path):
+    """Dedent-then-format must yield syntactically valid code even with
+    multi-line interpolated JSON (regression: IndentationError at runtime)."""
+    import ast
+    script = _build_placement_script(
+        pcb_path=tmp_path / "board.kicad_pcb",
+        components=SAMPLE_COMPONENTS,
+        nets=SAMPLE_NETS,
+        placements=SAMPLE_PLACEMENTS,
+        board_l_mm=50.8,
+        board_w_mm=22.86,
+        footprint_lib_path="/usr/share/kicad/footprints",
+    )
+    ast.parse(script)
+
+
+def test_parse_netlist_nets():
+    import tempfile
+
+    from mandrel.pipeline.s4_layout import _parse_netlist_nets
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".net", delete=False) as f:
+        f.write(SAMPLE_NETLIST)
+        tmp = Path(f.name)
+    try:
+        nets = _parse_netlist_nets(tmp)
+    finally:
+        tmp.unlink()
+    names = [n["name"] for n in nets]
+    assert "+3V3" in names
+    v33 = next(n for n in nets if n["name"] == "+3V3")
+    assert ["U1", "1"] in v33["nodes"]
 
 
 # ── LayoutStage integration (mocked adapters) ─────────────────────────────────

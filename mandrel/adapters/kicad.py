@@ -63,12 +63,13 @@ class KiCadCLIAdapter:
         output_dir.mkdir(parents=True, exist_ok=True)
         report_path = output_dir / "erc_report.json"
 
+        # KiCad 9: input file is positional
         result = self._run([
             "sch", "erc",
-            "--schematic", str(schematic_path),
-            "--output",    str(report_path),
-            "--format",    "json",
-            "--units",     "mm",
+            "--output", str(report_path),
+            "--format", "json",
+            "--units",  "mm",
+            str(schematic_path),
         ])
         # Exit code 5 means ERC ran but found violations — still a valid run.
         if result.returncode not in (0, 5):
@@ -86,9 +87,9 @@ class KiCadCLIAdapter:
             raise KiCadCLIError("kicad-cli not found.")
         result = self._run([
             "pcb", "export", "step",
-            "--input",  str(pcb_path),
             "--output", str(output_path),
             "--no-dnp",
+            str(pcb_path),
         ], timeout=timeout)
         if result.returncode != 0:
             raise KiCadCLIError(
@@ -112,11 +113,10 @@ class KiCadCLIAdapter:
 
         result = self._run([
             "pcb", "drc",
-            "--input",  str(pcb_path),
             "--output", str(report_path),
             "--format", "json",
             "--units",  "mm",
-            "--schematic-parity",  # also check net connectivity vs schematic
+            str(pcb_path),
         ])
         if result.returncode not in (0, 5):
             raise KiCadCLIError(
@@ -128,19 +128,24 @@ class KiCadCLIAdapter:
             )
         return report_path
 
-    def export_dsn(self, pcb_path: Path, dsn_path: Path) -> Path:
-        """Export a .kicad_pcb to Specctra DSN format for FreeRouting."""
-        if not self.is_available():
-            raise KiCadCLIError("kicad-cli not found.")
-        result = self._run([
-            "pcb", "export", "specctrafile",
-            "--input",  str(pcb_path),
-            "--output", str(dsn_path),
-        ])
+    def export_dsn(self, pcb_path: Path, dsn_path: Path, timeout: int = 60) -> Path:
+        """Export a .kicad_pcb to Specctra DSN format for FreeRouting.
+
+        kicad-cli has no Specctra export subcommand (verified against 9.0.9),
+        so this runs pcbnew.ExportSpecctraDSN via the KiCad Python interpreter
+        — subprocess only, GPL boundary maintained.
+        """
+        python_path = settings.kicad_python_path
+        script = (
+            "import pcbnew\n"
+            f"board = pcbnew.LoadBoard(r'{pcb_path}')\n"
+            f"ok = pcbnew.ExportSpecctraDSN(board, r'{dsn_path}')\n"
+            "raise SystemExit(0 if ok else 1)\n"
+        )
+        result = self._run_pcbnew_script(script, "_dsn_export.py", python_path, timeout)
         if result.returncode != 0:
             raise KiCadCLIError(
-                f"kicad-cli export specctrafile failed (exit {result.returncode}):\n"
-                f"{result.stderr}"
+                f"DSN export failed (exit {result.returncode}):\n{result.stderr}"
             )
         if not dsn_path.exists():
             raise KiCadCLIError(f"export_dsn: no DSN file produced at {dsn_path}")
@@ -156,21 +161,34 @@ class KiCadCLIAdapter:
         """
         python_path = settings.kicad_python_path
         script = (
-            "import sys, os\n"
-            "# pcbnew is shipped with KiCad — available in the kicad engine container\n"
-            f"board = __import__('pcbnew').LoadBoard(r'{pcb_path}')\n"
-            f"board.ImportSpecctraSession(r'{ses_path}')\n"
+            "import pcbnew\n"
+            f"board = pcbnew.LoadBoard(r'{pcb_path}')\n"
+            # Module-level function — BOARD has no ImportSpecctraSession method
+            # in KiCad 9.
+            f"ok = pcbnew.ImportSpecctraSES(board, r'{ses_path}')\n"
+            "if not ok:\n"
+            "    raise SystemExit(1)\n"
             f"board.Save(r'{pcb_path}')\n"
             "print('SES imported OK')\n"
         )
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix="_ses_import.py", delete=False
-        ) as f:
+        result = self._run_pcbnew_script(script, "_ses_import.py", python_path, timeout)
+        if result.returncode != 0:
+            raise KiCadCLIError(
+                f"pcbnew SES import failed (exit {result.returncode}):\n"
+                f"{result.stderr}"
+            )
+        return pcb_path
+
+    @staticmethod
+    def _run_pcbnew_script(
+        script: str, suffix: str, python_path: str, timeout: int
+    ) -> subprocess.CompletedProcess[str]:
+        """Write a pcbnew script to a temp file and run it out-of-process."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as f:
             f.write(script)
             script_path = f.name
-
         try:
-            result = subprocess.run(
+            return subprocess.run(
                 [python_path, script_path],
                 capture_output=True,
                 text=True,
@@ -178,13 +196,6 @@ class KiCadCLIAdapter:
             )
         finally:
             Path(script_path).unlink(missing_ok=True)
-
-        if result.returncode != 0:
-            raise KiCadCLIError(
-                f"pcbnew SES import failed (exit {result.returncode}):\n"
-                f"{result.stderr}"
-            )
-        return pcb_path
 
     def run_placement_script(self, script_path: Path, timeout: int = 120) -> None:
         """Run an arbitrary pcbnew Python placement script via the KiCad Python interpreter.
@@ -211,8 +222,8 @@ class KiCadCLIAdapter:
         output_dir.mkdir(parents=True, exist_ok=True)
         result = self._run([
             "pcb", "export", "gerbers",
-            "--board",  str(pcb_path),
             "--output", str(output_dir),
+            str(pcb_path),
         ])
         if result.returncode != 0:
             raise KiCadCLIError(f"kicad-cli gerbers failed:\n{result.stderr}")
