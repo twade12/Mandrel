@@ -67,6 +67,10 @@ class ArchitectureStage:
             if violations_ctx:
                 prompt += f"\n\nPREVIOUS STRUCTURAL VIOLATIONS (fix these):\n{violations_ctx}"
 
+            await ctx.progress(
+                self.name,
+                f"LLM proposing block architecture (attempt {attempt}/{self._max_retries})…",
+            )
             response = await self._llm.complete(
                 [Message(role="user", content=prompt)],
                 temperature=0.2,
@@ -92,6 +96,7 @@ class ArchitectureStage:
                 violations_ctx = f"Parse error: {msg}"
                 continue
 
+            await ctx.progress(self.name, "Verifying architecture structure…")
             result = self._verifier.check(arch)
             if result.passed:
                 break

@@ -36,6 +36,11 @@ class Context:
     config: Any = None   # mandrel.config.Settings — injected at runtime
     on_event: Any = None  # Optional async callable: async def on_event(event: dict) -> None
 
+    async def progress(self, stage: str, message: str) -> None:
+        """Emit a sub-stage progress message so the UI can show what's running."""
+        if self.on_event:
+            await self.on_event({"type": "stage_progress", "stage": stage, "message": message})
+
 
 # ── StageResult ───────────────────────────────────────────────────────────────
 

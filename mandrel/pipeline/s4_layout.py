@@ -102,6 +102,10 @@ class LayoutStage:
                 components_json=json.dumps(components, indent=2),
                 arch_json=arch_json,
             )
+            await ctx.progress(
+                self.name,
+                f"LLM proposing component placement (attempt {attempt}/{self._max_retries})…",
+            )
             raw = await self._llm.complete(
                 [Message(role="user", content=prompt)], temperature=0.1,
             )
@@ -141,6 +145,7 @@ class LayoutStage:
 
         artifacts: list[Path] = [script_path]
 
+        await ctx.progress(self.name, "Running pcbnew placement script (KiCad subprocess)…")
         try:
             self._kicad.run_placement_script(script_path)
         except KiCadCLIError as exc:
@@ -159,6 +164,7 @@ class LayoutStage:
 
         # ── 4. Export DSN ─────────────────────────────────────────────────────
         dsn_path = output_dir / "board.dsn"
+        await ctx.progress(self.name, "Exporting Specctra DSN for autorouting…")
         try:
             self._kicad.export_dsn(pcb_path, dsn_path)
             artifacts.append(dsn_path)
@@ -168,6 +174,9 @@ class LayoutStage:
         # ── 5. FreeRouting ───────────────────────────────────────────────────
         ses_path = output_dir / "board.ses"
         if self._freerouting.is_available():
+            await ctx.progress(
+                self.name, "FreeRouting autorouter running (can take several minutes)…"
+            )
             try:
                 self._freerouting.route(dsn_path, ses_path)
                 artifacts.append(ses_path)
@@ -175,12 +184,14 @@ class LayoutStage:
                 return _engine_error(state, artifacts, "FREEROUTING_FAILED", exc)
 
             # ── 6. Import SES ────────────────────────────────────────────────
+            await ctx.progress(self.name, "Importing routed SES back into the PCB…")
             try:
                 self._kicad.import_ses(pcb_path, ses_path)
             except KiCadCLIError as exc:
                 return _engine_error(state, artifacts, "SES_IMPORT_FAILED", exc)
 
         # ── 7. DRC ───────────────────────────────────────────────────────────
+        await ctx.progress(self.name, "Running kicad-cli DRC…")
         try:
             drc_report = self._kicad.run_drc(pcb_path, output_dir)
             artifacts.append(drc_report)
@@ -196,6 +207,7 @@ class LayoutStage:
         # ── 8. Export STEP for S5 ────────────────────────────────────────────
         step_path  = output_dir / "board.step"
         step_str: str | None = None
+        await ctx.progress(self.name, "Exporting board STEP for enclosure fit check…")
         try:
             self._kicad.export_step(pcb_path, step_path)
             if step_path.exists():

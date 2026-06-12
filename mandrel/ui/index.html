@@ -282,6 +282,17 @@
         </div>
       </template>
     </div>
+
+    <!-- Live activity line: what's running inside the current stage -->
+    <div
+      x-show="activity.message && status === 'running'"
+      class="flex items-center gap-2 text-xs font-mono rounded px-3 py-2"
+      style="background: rgba(34,211,238,.05); border: 1px solid rgba(34,211,238,.15);"
+    >
+      <span class="spinner"></span>
+      <span class="accent" x-text="activity.message"></span>
+      <span class="muted ml-auto" x-text="activityElapsed"></span>
+    </div>
   </div>
 
   <!-- ── Product Spec card (shown after S1) ───────────────────────────── -->
@@ -456,7 +467,7 @@
               'text-warning':  ev.type === 'checkpoint_needed',
               'text-success':  ev.type === 'run_completed',
               'text-error':    ev.type === 'run_failed',
-              'muted':         ev.type === 'ping' || ev.type === 'checkpoint_resolved',
+              'muted':         ev.type === 'ping' || ev.type === 'checkpoint_resolved' || ev.type === 'stage_progress',
             }"
             x-text="formatEvent(ev)"
           ></span>
@@ -510,6 +521,9 @@
       architecture: null,
       bom:          null,
       checkpoint: { stage: null, stageLabel: null },
+      activity:   { message: null, since: null },
+      now:        Date.now(),
+      _ticker:    null,
 
       stages: [
         { num: 1, name: 's1_intent',       label: 'Extract Spec',   status: 'idle', violations: [] },
@@ -519,6 +533,12 @@
         { num: 5, name: 's5_enclosure',    label: 'Enclosure',      status: 'idle', violations: [] },
         { num: 6, name: 's6_bom',          label: 'BOM & Sourcing', status: 'idle', violations: [] },
       ],
+
+      get activityElapsed() {
+        if (!this.activity.since) return '';
+        const s = Math.floor((this.now - this.activity.since) / 1000);
+        return s >= 60 ? `${Math.floor(s/60)}m ${s%60}s` : `${s}s`;
+      },
 
       get statusLabel() {
         const map = {
@@ -553,6 +573,7 @@
         });
         const { run_id } = await res.json();
         this.runId = run_id;
+        if (!this._ticker) this._ticker = setInterval(() => { this.now = Date.now(); }, 1000);
         this.connectWs(run_id);
       },
 
@@ -582,9 +603,15 @@
         if (ev.type === 'stage_started') {
           const s = this.stages.find(x => x.name === ev.stage);
           if (s) s.status = 'running';
+          this.activity = { message: `${ev.label || ev.stage} starting…`, since: Date.now() };
+        }
+
+        if (ev.type === 'stage_progress') {
+          this.activity = { message: ev.message, since: Date.now() };
         }
 
         if (ev.type === 'stage_completed') {
+          this.activity = { message: null, since: null };
           const s = this.stages.find(x => x.name === ev.stage);
           if (s) {
             s.status = ev.passed ? 'passed' : 'failed';
@@ -601,6 +628,7 @@
         if (ev.type === 'stage_failed') {
           const s = this.stages.find(x => x.name === ev.stage);
           if (s) s.status = 'failed';
+          this.activity = { message: null, since: null };
         }
 
         if (ev.type === 'checkpoint_needed') {
@@ -631,6 +659,11 @@
           }
         }
 
+        if (ev.type === 'run_completed' || ev.type === 'run_failed') {
+          this.activity = { message: null, since: null };
+          if (this._ticker) { clearInterval(this._ticker); this._ticker = null; }
+        }
+
         if (ev.type === 'run_failed') {
           this.status = 'failed';
           this.runError = ev.error || 'Unknown error';
@@ -648,6 +681,7 @@
 
       reset() {
         if (this.ws) { this.ws.close(); this.ws = null; }
+        if (this._ticker) { clearInterval(this._ticker); this._ticker = null; }
         this.runId = null;
         this.status = 'idle';
         this.runError = null;
@@ -655,12 +689,14 @@
         this.spec = null;
         this.architecture = null;
         this.bom = null;
+        this.activity = { message: null, since: null };
         this.stages.forEach(s => { s.status = 'idle'; s.violations = []; });
       },
 
       formatEvent(ev) {
         switch (ev.type) {
           case 'stage_started':    return `→ ${ev.label || ev.stage} started`;
+          case 'stage_progress':   return `  ⋯ ${ev.message}`;
           case 'stage_completed':  return `${ev.passed ? '✓' : '✗'} ${ev.label || ev.stage} ${ev.passed ? 'passed' : 'FAILED'} (score: ${(ev.score||0).toFixed(2)})`;
           case 'stage_failed':     return `✗ ${ev.label || ev.stage} error: ${ev.error}`;
           case 'checkpoint_needed':   return `⚠ Checkpoint: ${ev.label || ev.stage} — awaiting review`;

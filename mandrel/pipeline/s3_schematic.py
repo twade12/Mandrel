@@ -74,6 +74,11 @@ class SchematicStage:
                     f"\n\nPREVIOUS ERC VIOLATIONS (fix these):\n{violations_context}"
                 )
 
+            await ctx.progress(
+                self.name,
+                f"LLM writing SKiDL schematic script (attempt {attempt}/{self._max_retries}) — "
+                "this is the longest generation in the pipeline…",
+            )
             skidl_script = await self._llm.complete(
                 [Message(role="user", content=prompt)],
                 temperature=0.1,
@@ -81,6 +86,7 @@ class SchematicStage:
             skidl_script = _strip_markdown(skidl_script)
 
             # 2. Run SKiDL
+            await ctx.progress(self.name, "Running SKiDL script to emit schematic + netlist…")
             try:
                 outputs = self._skidl.run_script(skidl_script, output_dir)
             except Exception as exc:
@@ -115,6 +121,7 @@ class SchematicStage:
 
             # 3. kicad-cli ERC
             if sch_path and sch_path.exists():
+                await ctx.progress(self.name, "Running kicad-cli ERC on schematic…")
                 try:
                     report_path = self._kicad.run_erc(sch_path, output_dir)
                     erc_result  = self._erc.check(report_path)

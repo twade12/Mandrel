@@ -45,11 +45,13 @@ class IntentStage:
             raw_brief=raw_brief,
             form_factor=form_factor,
         )
+        await ctx.progress(self.name, "LLM extracting structured spec from brief…")
         response = await self._llm.complete(
             [Message(role="user", content=prompt)],
             temperature=0.2,
         )
 
+        await ctx.progress(self.name, "Parsing and validating spec…")
         spec = _parse_spec(response, raw_brief)
 
         new_state = state.model_copy(update={"spec": spec})

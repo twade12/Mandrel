@@ -31,11 +31,18 @@ class OpenAICompatibleProvider:
     Default: Ollama at http://localhost:11434/v1 with gemma4:26b.
     """
 
-    def __init__(self, base_url: str, model: str, api_key: str = "") -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_key: str = "",
+        timeout_s: float = 600.0,
+    ) -> None:
         headers = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
-        self._client = httpx.AsyncClient(base_url=base_url, headers=headers, timeout=120.0)
+        timeout = httpx.Timeout(connect=10.0, read=timeout_s, write=30.0, pool=10.0)
+        self._client = httpx.AsyncClient(base_url=base_url, headers=headers, timeout=timeout)
         self.model = model
 
     async def complete(self, messages: list[Message], **kwargs: Any) -> str:
@@ -65,4 +72,5 @@ def make_default_provider() -> OpenAICompatibleProvider:
         base_url=settings.llm_base_url,
         model=settings.llm_model,
         api_key=settings.llm_api_key,
+        timeout_s=settings.llm_timeout_s,
     )

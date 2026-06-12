@@ -9,6 +9,7 @@ Routes:
 
 WebSocket event types (sent server→client):
   stage_started       {stage, label}
+  stage_progress      {stage, message}
   stage_completed     {stage, label, passed, score, violations, state}
   stage_failed        {stage, label, error}
   checkpoint_needed   {stage, label, summary, state}
@@ -78,6 +79,7 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
         base_url=settings.llm_base_url,
         model=model,
         api_key=settings.llm_api_key,
+        timeout_s=settings.llm_timeout_s,
     )
 
     form_factor = FormFactor(req.form_factor)

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434/v1"
     llm_model: str = "gemma4:26b"
     llm_api_key: str = ""
+    # Read timeout for a single completion. Local models generating long code
+    # (S3 SKiDL scripts) can easily exceed 120 s — default generously.
+    llm_timeout_s: float = 600.0
 
     # Distributor API keys (empty = stub client used; real keys enable live grounding)
     # Nexar / Octopart: register at nexar.com to get client_id + client_secret
