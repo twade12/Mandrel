@@ -74,6 +74,7 @@ async def _run(args: argparse.Namespace) -> None:
         model=model,
         api_key=settings.llm_api_key,
         timeout_s=settings.llm_timeout_s,
+        reasoning_effort=settings.llm_reasoning_effort,
     )
 
     # Initial state

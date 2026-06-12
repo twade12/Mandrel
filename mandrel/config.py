@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     # Read timeout for a single completion. Local models generating long code
     # (S3 SKiDL scripts) can easily exceed 120 s — default generously.
     llm_timeout_s: float = 600.0
+    # Reasoning models (gemma4, qwen3, deepseek-r1) burn the whole max_tokens
+    # budget thinking before emitting content. "none" disables thinking for
+    # Mandrel's structured-output tasks; set to "" to leave the model default.
+    llm_reasoning_effort: str = "none"
 
     # Distributor API keys (empty = stub client used; real keys enable live grounding)
     # Nexar / Octopart: register at nexar.com to get client_id + client_secret

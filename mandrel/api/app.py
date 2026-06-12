@@ -80,6 +80,7 @@ async def _run_pipeline(run_id: str, req: StartRunRequest) -> None:
         model=model,
         api_key=settings.llm_api_key,
         timeout_s=settings.llm_timeout_s,
+        reasoning_effort=settings.llm_reasoning_effort,
     )
 
     form_factor = FormFactor(req.form_factor)
