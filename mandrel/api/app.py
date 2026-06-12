@@ -233,4 +233,6 @@ async def run_websocket(websocket: WebSocket, run_id: str) -> None:
 async def serve_ui() -> FileResponse:
     if not _UI_HTML.exists():
         raise HTTPException(status_code=404, detail="UI not built")
-    return FileResponse(_UI_HTML)
+    # The SPA is a single dev-served file — never let the browser cache it,
+    # or users keep seeing a stale UI after server updates.
+    return FileResponse(_UI_HTML, headers={"Cache-Control": "no-store"})
