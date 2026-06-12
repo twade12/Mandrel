@@ -78,7 +78,7 @@ class Build123dAdapter:
 
         script = f"""\
 from build123d import *
-from build123d.exporters import export_step
+# export_step is top-level in build123d >= 0.9
 
 board_l = {BOARD_LENGTH_MM}
 board_w = {BOARD_WIDTH_MM}
@@ -146,7 +146,7 @@ print("OK: feather_board.step")
 
         script = f"""\
 from build123d import *
-from build123d.exporters import export_step
+# export_step is top-level in build123d >= 0.9
 
 outer_l = {outer_l}
 outer_w = {outer_w}
