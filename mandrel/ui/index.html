@@ -293,6 +293,14 @@
       <span class="accent" x-text="activity.message"></span>
       <span class="muted ml-auto" x-text="activityElapsed"></span>
     </div>
+
+    <!-- Live LLM output: streams the model's raw text as it generates -->
+    <div x-show="activity.detail && status === 'running'" class="space-y-1">
+      <h3 class="text-xs uppercase tracking-widest muted">LLM Output — live</h3>
+      <div class="log-console rounded p-3" x-ref="llmEl" style="max-height: 16rem; overflow-y: auto;">
+        <pre class="font-mono text-xs whitespace-pre-wrap" style="margin:0" x-text="activity.detail"></pre>
+      </div>
+    </div>
   </div>
 
   <!-- ── Product Spec card (shown after S1) ───────────────────────────── -->
@@ -521,7 +529,7 @@
       architecture: null,
       bom:          null,
       checkpoint: { stage: null, stageLabel: null },
-      activity:   { message: null, since: null },
+      activity:   { message: null, since: null, detail: null },
       now:        Date.now(),
       _ticker:    null,
 
@@ -594,24 +602,39 @@
 
       handleEvent(ev) {
         if (ev.type === 'ping') return;
-        this.events.push(ev);
+
+        // Collapse consecutive progress events for the same stage into one
+        // updating log line (streaming emits one every ~2 s).
+        const last = this.events[this.events.length - 1];
+        if (ev.type === 'stage_progress' && last
+            && last.type === 'stage_progress' && last.stage === ev.stage) {
+          this.events.splice(this.events.length - 1, 1, ev);
+        } else {
+          this.events.push(ev);
+        }
         this.$nextTick(() => {
           const el = this.$refs.logEl;
           if (el) el.scrollTop = el.scrollHeight;
+          const llm = this.$refs.llmEl;
+          if (llm) llm.scrollTop = llm.scrollHeight;
         });
 
         if (ev.type === 'stage_started') {
           const s = this.stages.find(x => x.name === ev.stage);
           if (s) s.status = 'running';
-          this.activity = { message: `${ev.label || ev.stage} starting…`, since: Date.now() };
+          this.activity = { message: `${ev.label || ev.stage} starting…`, since: Date.now(), detail: null };
         }
 
         if (ev.type === 'stage_progress') {
-          this.activity = { message: ev.message, since: Date.now() };
+          this.activity = {
+            message: ev.message,
+            since: this.activity.since || Date.now(),
+            detail: ev.detail || null,
+          };
         }
 
         if (ev.type === 'stage_completed') {
-          this.activity = { message: null, since: null };
+          this.activity = { message: null, since: null, detail: null };
           const s = this.stages.find(x => x.name === ev.stage);
           if (s) {
             s.status = ev.passed ? 'passed' : 'failed';
@@ -628,7 +651,7 @@
         if (ev.type === 'stage_failed') {
           const s = this.stages.find(x => x.name === ev.stage);
           if (s) s.status = 'failed';
-          this.activity = { message: null, since: null };
+          this.activity = { message: null, since: null, detail: null };
         }
 
         if (ev.type === 'checkpoint_needed') {
@@ -660,7 +683,7 @@
         }
 
         if (ev.type === 'run_completed' || ev.type === 'run_failed') {
-          this.activity = { message: null, since: null };
+          this.activity = { message: null, since: null, detail: null };
           if (this._ticker) { clearInterval(this._ticker); this._ticker = null; }
         }
 
@@ -689,7 +712,7 @@
         this.spec = null;
         this.architecture = null;
         this.bom = null;
-        this.activity = { message: null, since: null };
+        this.activity = { message: null, since: null, detail: null };
         this.stages.forEach(s => { s.status = 'idle'; s.violations = []; });
       },
 

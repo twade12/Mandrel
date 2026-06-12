@@ -49,6 +49,8 @@ class IntentStage:
         response = await self._llm.complete(
             [Message(role="user", content=prompt)],
             temperature=0.2,
+            max_tokens=1024,
+            on_token=ctx.stream_reporter(self.name, "LLM extracting spec"),
         )
 
         await ctx.progress(self.name, "Parsing and validating spec…")

@@ -41,6 +41,35 @@ class Context:
         if self.on_event:
             await self.on_event({"type": "stage_progress", "stage": stage, "message": message})
 
+    def stream_reporter(
+        self,
+        stage: str,
+        prefix: str,
+        interval_s: float = 2.0,
+        tail_chars: int = 1500,
+    ) -> Any:
+        """Build an on_token callback for LLMProvider.complete() that emits
+        throttled stage_progress events carrying a live tail of the output."""
+        import time
+
+        buf: list[str] = []
+        last_emit = {"t": 0.0}
+
+        async def on_token(delta: str, total_chars: int) -> None:
+            buf.append(delta)
+            now = time.monotonic()
+            if now - last_emit["t"] < interval_s or not self.on_event:
+                return
+            last_emit["t"] = now
+            await self.on_event({
+                "type": "stage_progress",
+                "stage": stage,
+                "message": f"{prefix} — {total_chars:,} chars generated…",
+                "detail": "".join(buf)[-tail_chars:],
+            })
+
+        return on_token
+
 
 # ── StageResult ───────────────────────────────────────────────────────────────
 

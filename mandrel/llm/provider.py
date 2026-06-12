@@ -7,6 +7,7 @@ Default target is Ollama (gemma4:26b) — no API key required, fully local.
 
 from __future__ import annotations
 
+import json
 from typing import Any, Protocol, runtime_checkable
 
 import httpx
@@ -45,21 +46,62 @@ class OpenAICompatibleProvider:
         self._client = httpx.AsyncClient(base_url=base_url, headers=headers, timeout=timeout)
         self.model = model
 
-    async def complete(self, messages: list[Message], **kwargs: Any) -> str:
+    async def complete(
+        self,
+        messages: list[Message],
+        *,
+        on_token: Any = None,
+        **kwargs: Any,
+    ) -> str:
+        """Stream the completion; return the full text.
+
+        Streaming means the read timeout applies between chunks, not to the whole
+        generation — a slow local model that is still producing tokens never times
+        out, while a dead server still fails fast. `on_token(delta, total_chars)`
+        is awaited for each content chunk when provided.
+        """
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": [m.model_dump() for m in messages],
+            "stream": True,
             **kwargs,
         }
-        resp = await self._client.post("/chat/completions", json=payload)
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
-        if content is None:
+        parts: list[str] = []
+        total = 0
+        async with self._client.stream("POST", "/chat/completions", json=payload) as resp:
+            if resp.status_code >= 400:
+                body = (await resp.aread()).decode("utf-8", errors="replace")
+                raise ValueError(
+                    f"LLM request failed ({resp.status_code}) for model "
+                    f"'{self.model}': {body[:500]}"
+                )
+            async for line in resp.aiter_lines():
+                if not line.startswith("data:"):
+                    continue
+                data = line[len("data:"):].strip()
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+                choices = chunk.get("choices") or []
+                if not choices:
+                    continue
+                delta = (choices[0].get("delta") or {}).get("content")
+                if delta:
+                    parts.append(delta)
+                    total += len(delta)
+                    if on_token is not None:
+                        await on_token(delta, total)
+
+        text = "".join(parts)
+        if not text:
             raise ValueError(
-                f"LLM returned null content for model '{self.model}'. "
+                f"LLM returned no content for model '{self.model}'. "
                 "The model may have hit a context limit or produced an empty response."
             )
-        return content
+        return text
 
     async def aclose(self) -> None:
         await self._client.aclose()

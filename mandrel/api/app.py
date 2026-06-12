@@ -9,7 +9,7 @@ Routes:
 
 WebSocket event types (sent server→client):
   stage_started       {stage, label}
-  stage_progress      {stage, message}
+  stage_progress      {stage, message, detail?}   (detail = live LLM output tail)
   stage_completed     {stage, label, passed, score, violations, state}
   stage_failed        {stage, label, error}
   checkpoint_needed   {stage, label, summary, state}

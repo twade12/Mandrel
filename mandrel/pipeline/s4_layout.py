@@ -107,7 +107,13 @@ class LayoutStage:
                 f"LLM proposing component placement (attempt {attempt}/{self._max_retries})…",
             )
             raw = await self._llm.complete(
-                [Message(role="user", content=prompt)], temperature=0.1,
+                [Message(role="user", content=prompt)],
+                temperature=0.1,
+                max_tokens=2048,
+                on_token=ctx.stream_reporter(
+                    self.name,
+                    f"LLM proposing placement (attempt {attempt}/{self._max_retries})",
+                ),
             )
             try:
                 placements = _parse_placements(raw)

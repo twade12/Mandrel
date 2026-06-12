@@ -82,6 +82,11 @@ class SchematicStage:
             skidl_script = await self._llm.complete(
                 [Message(role="user", content=prompt)],
                 temperature=0.1,
+                max_tokens=4096,
+                on_token=ctx.stream_reporter(
+                    self.name,
+                    f"LLM writing SKiDL script (attempt {attempt}/{self._max_retries})",
+                ),
             )
             skidl_script = _strip_markdown(skidl_script)
 

@@ -74,6 +74,11 @@ class ArchitectureStage:
             response = await self._llm.complete(
                 [Message(role="user", content=prompt)],
                 temperature=0.2,
+                max_tokens=2048,
+                on_token=ctx.stream_reporter(
+                    self.name,
+                    f"LLM proposing architecture (attempt {attempt}/{self._max_retries})",
+                ),
             )
 
             try:
