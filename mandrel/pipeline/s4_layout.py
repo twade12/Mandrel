@@ -24,6 +24,7 @@ import json
 import re
 import textwrap
 from pathlib import Path
+from typing import Any
 
 from mandrel.adapters.freerouting import FreeRoutingAdapter, FreeRoutingError
 from mandrel.adapters.kicad import KiCadCLIAdapter, KiCadCLIError
@@ -275,24 +276,78 @@ def _engine_error(
 
 
 def _parse_netlist_components(netlist_path: Path) -> list[dict]:
-    """Parse KiCad .net (S-expression) to a list of {ref, value, footprint} dicts."""
+    """Parse KiCad .net (S-expression) to a list of {ref, value, footprint} dicts.
+
+    Uses a real S-expression walk — comp blocks nest arbitrarily deep
+    ((fields (field ...))), which defeats regex matching. Virtual parts
+    (refs starting with '#', e.g. PWR_FLAG) are skipped: they have no
+    physical footprint and must not reach placement.
+    """
     text = netlist_path.read_text(encoding="utf-8")
+    try:
+        tree = _parse_sexp(text)
+    except ValueError:
+        return []
+
     components: list[dict] = []
-
-    # Match each (comp ...) block (greedy enough to capture all nested fields)
-    for block in re.findall(r"\(comp\b([^()]*(?:\([^()]*\)[^()]*)*)\)", text):
-        ref = _sexp_field(block, "ref")
-        val = _sexp_field(block, "value")
-        fp  = _sexp_field(block, "footprint")
-        if ref:
-            components.append({"ref": ref, "value": val or "", "footprint": fp or ""})
-
+    for node in _find_sexp_nodes(tree, "comp"):
+        ref = _sexp_child_value(node, "ref")
+        if not ref or ref.startswith("#"):
+            continue
+        components.append({
+            "ref": ref,
+            "value": _sexp_child_value(node, "value") or "",
+            "footprint": _sexp_child_value(node, "footprint") or "",
+        })
     return components
 
 
-def _sexp_field(block: str, field: str) -> str | None:
-    m = re.search(rf'\({re.escape(field)}\s+"?([^")\s]+)"?\)', block)
-    return m.group(1) if m else None
+def _parse_sexp(text: str) -> list:
+    """Parse an S-expression string into nested Python lists of strings."""
+    tokens = re.findall(r'"(?:[^"\\]|\\.)*"|[()]|[^\s()"]+', text)
+    pos = 0
+
+    def parse() -> Any:
+        nonlocal pos
+        token = tokens[pos]
+        pos += 1
+        if token == "(":
+            node = []
+            while pos < len(tokens) and tokens[pos] != ")":
+                node.append(parse())
+            if pos >= len(tokens):
+                raise ValueError("Unbalanced S-expression")
+            pos += 1  # consume ")"
+            return node
+        if token == ")":
+            raise ValueError("Unexpected ')'")
+        if token.startswith('"') and token.endswith('"') and len(token) >= 2:
+            return token[1:-1].replace('\\"', '"')
+        return token
+
+    result = parse()
+    return result if isinstance(result, list) else [result]
+
+
+def _find_sexp_nodes(tree: list, tag: str) -> list[list]:
+    """Recursively collect all sub-lists whose first element is `tag`."""
+    found: list[list] = []
+    if tree and tree[0] == tag:
+        found.append(tree)
+    for child in tree:
+        if isinstance(child, list):
+            found.extend(_find_sexp_nodes(child, tag))
+    return found
+
+
+def _sexp_child_value(node: list, tag: str) -> str | None:
+    """Return the first atom following `tag` in a direct child list."""
+    for child in node:
+        if isinstance(child, list) and child and child[0] == tag and len(child) > 1:
+            value = child[1]
+            if isinstance(value, str):
+                return value
+    return None
 
 
 # ── Placement JSON parser ─────────────────────────────────────────────────────
