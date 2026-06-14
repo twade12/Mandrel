@@ -221,8 +221,16 @@ S4_PLACEMENT_GEN = """\
 You are an expert PCB layout engineer. Propose component placements for the PCB
 described below and return a JSON array of placement objects.
 
-BOARD DIMENSIONS: {board_l_mm} mm × {board_w_mm} mm  (origin at top-left corner)
+BOARD DIMENSIONS: {board_l_mm} mm × {board_w_mm} mm  (origin at lower-left corner)
 FORM FACTOR: {form_factor}
+
+The board outline, mounting holes, and the USB-C receptacle are already placed
+by a fixed template — DO NOT place them. The USB-C connector occupies the LEFT
+short edge. You place ONLY the components listed below, and ALL of them must fall
+inside this keep-in rectangle (mm): x in [{keep_in_x0}, {keep_in_x1}],
+y in [{keep_in_y0}, {keep_in_y1}]. Anything outside it collides with the
+connector, the mounting holes, or the board edge.
+
 COMPONENTS (from netlist; "size_mm": [width, height] is each part's real
 courtyard bounding box, measured from its KiCad footprint):
 {components_json}
@@ -243,23 +251,23 @@ OUTPUT FORMAT — return ONLY a JSON array, no markdown fences, no extra text:
 
 PLACEMENT RULES:
 1. All components must be on the "front" side unless stated otherwise.
-2. MCU (largest IC) should be centered on the board with a 2 mm keep-out margin
-   from the board edge on all sides.
-3. LDO and power components: place near the USB-C connector (typically the short
-   edge of the Feather board).
-4. Connectors: Feather standard has two rows of 0.1" headers along the long edges.
-   Place the USB-C receptacle at one short end.
+2. EVERY part's centroid must lie inside the keep-in rectangle given above.
+3. MCU (largest IC) goes roughly in the centre of the keep-in area; it is the
+   anchor everything else clusters around.
+4. LDO and power input parts: place toward the LEFT of the keep-in area, nearest
+   the USB-C connector. Sensors: toward the RIGHT.
 5. Decoupling capacitors: place 1.5–3 mm from the IC they serve (NOT inside its
    courtyard — the IC body occupies its full size_mm).
 6. Pull-up resistors: place near (not under) the MCU.
-7. Sensor ICs: spread along the remaining board area, at least 3 mm from each other.
-8. Every part's full courtyard must stay inside the board: for each part,
-   x_mm must be within [size_w/2 + 1, board_length − size_w/2 − 1], same for y.
-9. NO OVERLAP — this is the most-violated rule. For EVERY pair of parts A and B:
+7. Spread parts across the FULL width and length of the keep-in rectangle — do
+   not cluster them in one corner and do not leave large empty regions. The goal
+   is an even, compact, routable distribution like a real Feather board.
+8. Orientation: ICs at 0°. Two-pin passives (R/C) may use 0° or 90°. Keep
+   rotations sensible — no arbitrary angles.
+9. NO OVERLAP — the most-violated rule. For EVERY pair of parts A and B:
    |xA − xB| ≥ (wA + wB)/2 + 0.5  OR  |yA − yB| ≥ (hA + hB)/2 + 0.5
    where [w, h] is each part's size_mm. Check every pair before answering.
-10. Use the whole board area — do not cluster parts in one corner.
-11. Return every reference from the components list — do not omit any.
+10. Return every reference from the components list — do not omit any.
 
 Return ONLY the JSON array.
 """

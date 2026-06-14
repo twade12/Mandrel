@@ -32,6 +32,7 @@ from mandrel.core.state import DesignState, PcbArtifact, VerifierResult, Violati
 from mandrel.core.workflow import Context, StageResult
 from mandrel.llm.prompts import S4_PLACEMENT_GEN
 from mandrel.llm.provider import LLMProvider, Message
+from mandrel.standards.form_factors import feather_template
 from mandrel.verify.drc import DRCVerifier
 
 
@@ -104,6 +105,13 @@ class LayoutStage:
         _attach_courtyard_sizes(components, fp_lib_path)
         nets = _parse_netlist_nets(netlist_path)
 
+        # Deterministic Feather template: the LLM only places free interior
+        # parts into the keep-in rectangle; USB-C is locked to the short edge
+        # at the correct rotation (overrides whatever the LLM proposes).
+        keep_in = feather_template.keep_in_rect(BOARD_LENGTH_MM, BOARD_WIDTH_MM)
+        usb_fixed = feather_template.usb_c_fixed_placements(components, BOARD_WIDTH_MM)
+        free_components = [c for c in components if c["ref"] not in usb_fixed]
+
         pcb_path    = output_dir / "board.kicad_pcb"
         script_path = output_dir / "placement.py"
         dsn_path    = output_dir / "board.dsn"
@@ -115,8 +123,8 @@ class LayoutStage:
         # ── 3. Layout repair loop: place → route → DRC → feed errors back ────
         for layout_attempt in range(1, self._max_layout_attempts + 1):
             placements = await self._propose_placements(
-                ctx, components, arch_json, form_factor,
-                BOARD_LENGTH_MM, BOARD_WIDTH_MM, drc_feedback,
+                ctx, free_components, arch_json, form_factor,
+                BOARD_LENGTH_MM, BOARD_WIDTH_MM, drc_feedback, keep_in,
             )
             if not placements:
                 return StageResult(
@@ -130,6 +138,9 @@ class LayoutStage:
                         )],
                     ),
                 )
+            # Locked template parts (USB-C) override the LLM proposal.
+            placements = [p for p in placements if p.get("ref") not in usb_fixed]
+            placements.extend(usb_fixed.values())
 
             script_src = _build_placement_script(
                 pcb_path=pcb_path,
@@ -258,12 +269,14 @@ class LayoutStage:
         board_l_mm: float,
         board_w_mm: float,
         drc_feedback: str,
+        keep_in: tuple[float, float, float, float],
     ) -> list[dict]:
         """LLM placement proposal with JSON-parse retries.
 
         On repair iterations, drc_feedback carries the previous layout's DRC
         errors so the model can move the offending parts.
         """
+        kx0, ky0, kx1, ky1 = keep_in
         for attempt in range(1, self._max_retries + 1):
             prompt = S4_PLACEMENT_GEN.format(
                 board_l_mm=board_l_mm,
@@ -271,6 +284,7 @@ class LayoutStage:
                 form_factor=form_factor,
                 components_json=json.dumps(components, indent=2),
                 arch_json=arch_json,
+                keep_in_x0=kx0, keep_in_y0=ky0, keep_in_x1=kx1, keep_in_y1=ky1,
             )
             if drc_feedback:
                 prompt += (
@@ -556,15 +570,7 @@ _PLACEMENT_SCRIPT_TEMPLATE = textwrap.dedent("""\
 
     board = pcbnew.BOARD()
 
-    # Board outline
-    outline = pcbnew.PCB_SHAPE(board)
-    outline.SetShape(pcbnew.SHAPE_T_RECT)
-    outline.SetLayer(pcbnew.Edge_Cuts)
-    outline.SetStart(pcbnew.VECTOR2I(0, 0))
-    outline.SetEnd(pcbnew.VECTOR2I(
-        pcbnew.FromMM(BOARD_L_MM), pcbnew.FromMM(BOARD_W_MM)
-    ))
-    board.Add(outline)
+    # __MANDREL_TEMPLATE_OUTLINE__
 
     # Nets
     net_map = {{}}
@@ -677,9 +683,11 @@ def _build_placement_script(
     netlist (components + nets) and the LLM's placement proposal.
 
     The template is dedented BEFORE substitution: interpolated JSON is
-    multi-line and would otherwise destroy the common indent.
+    multi-line and would otherwise destroy the common indent. The deterministic
+    Feather outline + mounting holes are spliced in via a marker replace (after
+    format) so the emitted pcbnew source never passes through str.format.
     """
-    return _PLACEMENT_SCRIPT_TEMPLATE.format(
+    script = _PLACEMENT_SCRIPT_TEMPLATE.format(
         board_l_mm=board_l_mm,
         board_w_mm=board_w_mm,
         pcb_path=str(pcb_path),
@@ -689,3 +697,5 @@ def _build_placement_script(
         placements_json=json.dumps(placements, indent=2),
         nets_json=json.dumps(nets, indent=2),
     )
+    outline_src = feather_template.outline_and_holes_src(board_l_mm, board_w_mm)
+    return script.replace("# __MANDREL_TEMPLATE_OUTLINE__", outline_src)
