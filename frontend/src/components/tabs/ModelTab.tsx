@@ -11,9 +11,13 @@ function Model({ url }: { url: string }) {
 
 export function ModelTab() {
   const { activeRunId, design, stageStatus } = useStore();
-  const [which, setWhich] = useState<"enclosure.glb" | "board.glb">("enclosure.glb");
   const enclosureReady = !!design?.enclosure?.step_path || stageStatus["s5_enclosure"] === "passed";
   const boardReady = !!design?.pcb?.board_step_path || stageStatus["s4_layout"] === "passed";
+  // Default to whichever exists: board appears after S4, enclosure after S5.
+  const [pick, setPick] = useState<"enclosure.glb" | "board.glb" | null>(null);
+  const which: "enclosure.glb" | "board.glb" =
+    pick ?? (enclosureReady ? "enclosure.glb" : "board.glb");
+  const setWhich = setPick;
   const ready = which === "enclosure.glb" ? enclosureReady : boardReady;
 
   if (!activeRunId) return <div className="tab"><div className="placeholder">No active run.</div></div>;

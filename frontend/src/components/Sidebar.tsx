@@ -3,12 +3,31 @@ import { useStore } from "../state";
 
 const FORM_FACTORS = ["feather", "hat", "mikrobus", "arduino_shield", "din_rail", "custom"];
 
-export function Sidebar() {
+export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const { projects, activeRunId, startRun, selectProject } = useStore();
   const [brief, setBrief] = useState("");
   const [formFactor, setFormFactor] = useState("feather");
   const [model, setModel] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const Logo = (
+    <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="6" fill="#0C1521" />
+      <path d="M6 24 L6 8 L16 18 L26 8 L26 24" stroke="#22D3EE" strokeWidth="2.5"
+        strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+
+  if (collapsed) {
+    return (
+      <div className="sidebar collapsed">
+        <div className="brand" style={{ flexDirection: "column", gap: 12 }}>
+          {Logo}
+          <button className="btn btn-ghost" style={{ padding: "4px 6px" }} title="Expand" onClick={onToggle}>»</button>
+        </div>
+      </div>
+    );
+  }
 
   async function run() {
     if (!brief.trim()) return;
@@ -29,12 +48,10 @@ export function Sidebar() {
   return (
     <div className="sidebar">
       <div className="brand">
-        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="6" fill="#0C1521" />
-          <path d="M6 24 L6 8 L16 18 L26 8 L26 24" stroke="#22D3EE" strokeWidth="2.5"
-            strokeLinecap="round" strokeLinejoin="round" fill="none" />
-        </svg>
+        {Logo}
         <h1>MANDREL</h1>
+        <button className="btn btn-ghost" style={{ padding: "4px 6px", marginLeft: "auto" }}
+          title="Collapse" onClick={onToggle}>«</button>
       </div>
 
       <div className="new-run">

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { StageRail } from "./components/StageRail";
 import { ChatPanel } from "./components/ChatPanel";
@@ -6,9 +7,10 @@ import { useStore } from "./state";
 
 export function App() {
   const { chatOpen, toggleChat, checkpoint, resolveCheckpoint } = useStore();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
     <div className="app">
-      <Sidebar />
+      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((c) => !c)} />
       <div className="main">
         <div className="topbar">
           <StageRail />
