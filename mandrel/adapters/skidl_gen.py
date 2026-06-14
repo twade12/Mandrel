@@ -27,8 +27,12 @@ class SKiDLAdapter:
         self,
         kicad_lib_path: str | None = None,
         timeout: int = 90,
+        kicad_footprint_path: str | None = None,
     ) -> None:
         self._lib_path = kicad_lib_path or settings.kicad_lib_path
+        self._footprint_path = kicad_footprint_path or getattr(
+            settings, "kicad_footprint_path", "/usr/share/kicad/footprints"
+        )
         self._timeout = timeout
 
     def run_script(self, script: str, output_dir: Path) -> dict[str, Path]:
@@ -42,7 +46,8 @@ class SKiDLAdapter:
 
         # Prepend env setup so the subprocess can find KiCad symbol libraries.
         # SKiDL keys its lookup on the KiCad-version-specific variable
-        # (KICAD9_SYMBOL_DIR for skidl 2.x), so set every variant.
+        # (KICAD9_SYMBOL_DIR for skidl 2.x), so set every variant. Also point
+        # the footprint dir so auto_stub's power symbols resolve.
         preamble = textwrap.dedent(f"""\
             import os, sys
             for _var in (
@@ -51,23 +56,41 @@ class SKiDLAdapter:
                 "SKIDL_KICAD_LIB_SEARCH_PATHS",
             ):
                 os.environ.setdefault(_var, {self._lib_path!r})
+            os.environ.setdefault("KICAD9_FOOTPRINT_DIR", {self._footprint_path!r})
 
-            # Normalize a common LLM slip: Part("Lib:Symbol", ...) instead of
-            # Part("Lib", "Symbol", ...). Patch before the script's
-            # `from skidl import *` so the wrapped Part is what gets imported.
             import skidl as _skidl
+
+            # 1. Normalize a common LLM slip: Part("Lib:Symbol", ...) instead of
+            #    Part("Lib", "Symbol", ...). MUST be a Part SUBCLASS, not a
+            #    function — SKiDL's schematic router does `isinstance(p, Part)`
+            #    after `from skidl import Part`, and a function isn't a type
+            #    (crashes generate_schematic). A subclass stays a valid type.
             _OrigPart = _skidl.Part
 
-            def _NormalizedPart(lib=None, name=None, *args, **kwargs):
-                if isinstance(lib, str) and ":" in lib:
-                    _lib, _sym = lib.split(":", 1)
-                    if name is None or name == _sym or name == lib:
-                        lib, name = _lib, _sym
-                    else:
-                        lib = _lib
-                return _OrigPart(lib, name, *args, **kwargs)
+            class _NormalizedPart(_OrigPart):
+                def __init__(self, lib=None, name=None, *args, **kwargs):
+                    if isinstance(lib, str) and ":" in lib:
+                        _lib, _sym = lib.split(":", 1)
+                        if name is None or name == _sym or name == lib:
+                            lib, name = _lib, _sym
+                        else:
+                            lib = _lib
+                    super().__init__(lib, name, *args, **kwargs)
 
             _skidl.Part = _NormalizedPart
+
+            # 2. Force auto_stub on generate_schematic: SKiDL's wire auto-router
+            #    is broken for non-trivial designs (py3.12), but auto_stub
+            #    converts nets to global labels and skips routing, producing a
+            #    valid openable .kicad_sch. Enforced here so a bare
+            #    generate_schematic() call still gets it.
+            _orig_gen_sch = _skidl.generate_schematic
+
+            def _gen_schematic(*args, **kwargs):
+                kwargs.setdefault("auto_stub", True)
+                return _orig_gen_sch(*args, **kwargs)
+
+            _skidl.generate_schematic = _gen_schematic
         """)
         script_path.write_text(preamble + script, encoding="utf-8")
 

@@ -155,7 +155,9 @@ usb["CC2"]    += cc2   # 5.1k pull-down to GND
 ERC()
 generate_netlist(file_="{output_dir}/netlist.net")
 try:
-    generate_schematic()   # writes skidl.kicad_sch to the working directory
+    # auto_stub=True is required: it converts nets to global labels and skips
+    # SKiDL's (broken) wire router, producing a valid skidl.kicad_sch.
+    generate_schematic(auto_stub=True)
 except Exception as exc:
     print(f"schematic generation skipped: {{exc}}")
 ```

@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import { artifactUrl } from "../../api";
 import { useStore } from "../../state";
 
-// Renders an SVG artifact served by the backend, polling until it appears
-// (the artifact is generated lazily once the relevant stage has run).
+// Renders an SVG artifact served by the backend. Polls a few times after the
+// stage reports ready (the file is generated lazily on first request), then
+// shows a clear error state instead of hanging on "loading…".
 export function ArtifactImage({ name, ready, hint }: { name: string; ready: boolean; hint: string }) {
   const { activeRunId } = useStore();
-  const [ok, setOk] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    setOk(false);
-  }, [activeRunId, name, ready]);
+    setStatus(ready ? "loading" : "idle");
+  }, [activeRunId, name, ready, tick]);
 
   if (!activeRunId) return <div className="tab"><div className="placeholder">No active run.</div></div>;
   if (!ready) return <div className="tab"><div className="placeholder">{hint}</div></div>;
@@ -19,16 +20,27 @@ export function ArtifactImage({ name, ready, hint }: { name: string; ready: bool
   const url = `${artifactUrl(activeRunId, name)}?v=${tick}`;
   return (
     <div className="tab" style={{ display: "flex", flexDirection: "column" }}>
-      <h2 style={{ display: "flex", justifyContent: "space-between" }}>
-        {name}
+      <h2 style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>{name}</span>
         <button className="btn btn-ghost" style={{ padding: "2px 8px" }} onClick={() => setTick((t) => t + 1)}>
           ⟳ refresh
         </button>
       </h2>
       <div className="svg-frame" style={{ flex: 1 }}>
-        {!ok && <div className="placeholder">loading {name}…</div>}
-        <img src={url} alt={name} onLoad={() => setOk(true)} onError={() => setOk(false)}
-             style={{ display: ok ? "block" : "none" }} />
+        {status === "loading" && <div className="placeholder">rendering {name}…</div>}
+        {status === "error" && (
+          <div className="placeholder">
+            {name} not available yet.<br />
+            <span className="muted">The stage may still be running, or this artifact failed to render. Try ⟳ refresh.</span>
+          </div>
+        )}
+        <img
+          src={url}
+          alt={name}
+          onLoad={() => setStatus("ok")}
+          onError={() => setStatus("error")}
+          style={{ display: status === "ok" ? "block" : "none" }}
+        />
       </div>
     </div>
   );

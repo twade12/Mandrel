@@ -108,11 +108,17 @@ def _edge_line(x1, y1, x2, y2):
     board.Add(s)
 
 def _edge_arc(cx, cy, sx, sy, ex, ey, r):
-    sa = _math.atan2(sy - cy, sx - cx)
-    ea = _math.atan2(ey - cy, ex - cx)
-    ma = (sa + ea) / 2.0
-    mx = cx + r * _math.cos(ma)
-    my = cy + r * _math.sin(ma)
+    # Midpoint via the vector-sum bisector of the start/end directions, so the
+    # arc always bulges OUTWARD. Averaging the two atan2 angles wraps at the
+    # +/-pi boundary and flips one corner inward (the H1 edge-cut defect).
+    sdx, sdy = sx - cx, sy - cy
+    edx, edy = ex - cx, ey - cy
+    bx, by = sdx + edx, sdy + edy
+    blen = _math.hypot(bx, by)
+    if blen < 1e-9:  # degenerate (antipodal) — fall back to a perpendicular
+        bx, by, blen = -sdy, sdx, r
+    mx = cx + r * bx / blen
+    my = cy + r * by / blen
     s = pcbnew.PCB_SHAPE(board)
     s.SetShape(pcbnew.SHAPE_T_ARC)
     s.SetLayer(pcbnew.Edge_Cuts)

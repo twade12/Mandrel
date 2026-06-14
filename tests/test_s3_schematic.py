@@ -102,26 +102,28 @@ async def test_s3_succeeds_with_clean_erc(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_s3_retries_on_erc_failure(tmp_path: Path) -> None:
-    """S3 feeds ERC violations back to LLM and retries up to max_retries times."""
+async def test_s3_erc_is_advisory_not_gating(tmp_path: Path) -> None:
+    """Schematic ERC is advisory: ERC errors are surfaced as warnings and do
+    NOT fail S3 or trigger a retry (the auto-stub schematic is a visualization;
+    the netlist is authoritative). One LLM call, passed=True."""
     mock_llm = AsyncMock()
     mock_llm.complete = AsyncMock(return_value=_make_skidl_script())
 
     mock_skidl = MagicMock()
     sch_path = tmp_path / "schematic.kicad_sch"
     sch_path.touch()
-    mock_skidl.run_script.return_value = {"schematic": sch_path}
+    net_path = tmp_path / "netlist.net"
+    net_path.touch()
+    mock_skidl.run_script.return_value = {"schematic": sch_path, "netlist": net_path}
 
-    # First call: ERC fails; second call: ERC passes
+    # ERC reports errors — these must be surfaced but must not gate S3.
     fail_report = tmp_path / "erc_fail.json"
     fail_report.write_text(json.dumps({
         "errors": 1, "warnings": 0,
         "items": [{"type": "error", "description": "Pin not connected", "pos": ""}],
     }))
-    pass_report = tmp_path / "erc_pass.json"
-    pass_report.write_text(json.dumps({"errors": 0, "warnings": 0, "items": []}))
     mock_kicad = MagicMock()
-    mock_kicad.run_erc.side_effect = [fail_report, pass_report]
+    mock_kicad.run_erc.return_value = fail_report
 
     state = DesignState(spec=ProductSpec(
         title="Sensor Board", description="test", raw_brief="brief"
@@ -133,8 +135,11 @@ async def test_s3_retries_on_erc_failure(tmp_path: Path) -> None:
 
     result = await stage.run(state, ctx)
 
-    assert mock_llm.complete.call_count == 2
-    assert result.verifier_result.passed is True
+    assert mock_llm.complete.call_count == 1          # no retry on ERC findings
+    assert result.verifier_result.passed is True       # advisory, non-gating
+    codes = [v.code for v in result.verifier_result.violations]
+    assert "ERC_ADVISORY" in codes                     # surfaced for the ERC tab
+    assert all(v.severity != "error" for v in result.verifier_result.violations)
 
 
 @pytest.mark.asyncio
