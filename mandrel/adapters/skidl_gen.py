@@ -106,9 +106,45 @@ class SKiDLAdapter:
 
             def _gen_schematic(*args, **kwargs):
                 kwargs.setdefault("auto_stub", True)
+                _inject_pwr_flags()
                 return _orig_gen_sch(*args, **kwargs)
 
             _skidl.generate_schematic = _gen_schematic
+
+            # 3. Auto-inject PWR_FLAG on power nets. PWR_FLAG is mechanical ERC
+            #    boilerplate, and the LLM repeatedly crashes the script trying to
+            #    wire it (pwr_flag["flag"], pwr_flag.flag[1], ...). The prompt now
+            #    tells the model NEVER to touch PWR_FLAG; Mandrel adds them here,
+            #    just before netlist/schematic generation, so power nets are
+            #    flagged regardless of what the script wrote.
+            _POWER_NET_NAMES = {
+                "+3V3", "+3.3V", "3V3", "GND", "VBUS", "+5V", "5V",
+                "VCC", "VDD", "VDDA", "VDDIO", "+1V8", "VSYS",
+            }
+            _flagged = set()
+
+            def _inject_pwr_flags():
+                import builtins as _bi
+                _circuit = getattr(_bi, "default_circuit", None)
+                if _circuit is None:
+                    return
+                for _net in list(_circuit.nets):
+                    _nm = getattr(_net, "name", "") or ""
+                    if _nm in _POWER_NET_NAMES and _nm not in _flagged:
+                        _flagged.add(_nm)
+                        try:
+                            _f = _NormalizedPart("power", "PWR_FLAG")
+                            _f[1] += _net
+                        except Exception as _e:
+                            print("PWR_FLAG inject skipped for", _nm, _e, file=sys.stderr)
+
+            _orig_gen_netlist = _skidl.generate_netlist
+
+            def _gen_netlist(*args, **kwargs):
+                _inject_pwr_flags()
+                return _orig_gen_netlist(*args, **kwargs)
+
+            _skidl.generate_netlist = _gen_netlist
         """)
         script_path.write_text(preamble + script, encoding="utf-8")
 

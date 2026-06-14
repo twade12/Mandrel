@@ -171,7 +171,11 @@ KICAD SYMBOL LIBRARY NAMES (verified against the KiCad 9 libraries — use exact
 - USB-C receptacle: Connector:USB_C_Receptacle_USB2.0_16P
 - Generic R:       Device:R
 - Generic C:       Device:C
-- PWR_FLAG:        power:PWR_FLAG
+
+DO NOT create, instantiate, or connect PWR_FLAG. Mandrel adds PWR_FLAG to every
+power net (+3V3, GND, VBUS, +5V, …) automatically before netlist/schematic
+generation. Never write Part("power", "PWR_FLAG") or reference a pwr_flag
+variable — it is the single most common cause of script failure.
 
 VERIFIED PIN NAMES (use exactly these — no other names exist on these symbols):
 - RP2040: IOVDD, DVDD, USB_VDD, ADC_AVDD, VREG_VIN, VREG_VOUT, GND,
@@ -187,7 +191,6 @@ VERIFIED PIN NAMES (use exactly these — no other names exist on these symbols)
 - ICM-20948: VDD, VDDIO, GND, SCL/SCLK, SDA/SDI, SDO/AD0, INT1, REGOUT, FSYNC,
   AUX_CL, AUX_DA, ~{{CS}}.  (I2C mode: ~{{CS}} → VDDIO; REGOUT → 100 nF to GND)
 - USB_C_Receptacle_USB2.0_16P: VBUS, GND, SHIELD, CC1, CC2, D+, D-, SBU1, SBU2.
-- PWR_FLAG: one pin — flag[1].
 
 VERIFIED FOOTPRINTS (use exactly these in the footprint= argument — symbol
 names are NOT footprint names):
@@ -200,12 +203,11 @@ names are NOT footprint names):
 - R 0402:    Resistor_SMD:R_0402_1005Metric
 - C 0402:    Capacitor_SMD:C_0402_1005Metric
 - C 0603:    Capacitor_SMD:C_0603_1608Metric
-- PWR_FLAG:  no footprint (virtual part — omit the footprint= argument)
 
 RULES:
-- Every net named +3V3 must connect to both the LDO output AND a PWR_FLAG.
-- Every net named GND must connect to a PWR_FLAG.
-- Add decoupling caps on all VDD/VDDIO pins.
+- Do NOT create or connect PWR_FLAG (Mandrel adds them to power nets for you).
+- Add a decoupling cap (100 nF) for EACH VDD/VDDIO/IOVDD power pin, and wire it
+  directly between that power pin's net and GND — one cap per power pin.
 - Address pins on ICs and connectors by NAME (u["VDD"]); integer indexing is
   allowed only on 2-pin R/C parts.
 - Part() takes library and symbol as SEPARATE arguments:
