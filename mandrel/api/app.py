@@ -29,6 +29,9 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
+from mandrel.config import settings
+
+from . import artifacts
 from .runs import RunStore
 
 _store = RunStore()
@@ -229,6 +232,24 @@ async def run_websocket(websocket: WebSocket, run_id: str) -> None:
         pass
     finally:
         run_ctx.unsubscribe(q)
+
+
+@app.get("/api/runs/{run_id}/artifact/{name}")
+async def get_artifact(run_id: str, name: str) -> FileResponse:
+    """Render-on-demand SVG/GLB artifacts for the UI render tabs."""
+    run_ctx = _store.get(run_id)
+    if run_ctx is None or run_ctx.project_id in (None, "pending"):
+        raise HTTPException(status_code=404, detail="Run not found")
+    project_dir = (settings.workspace_dir / run_ctx.project_id).resolve()
+    try:
+        path = await asyncio.to_thread(artifacts.render, project_dir, name)
+    except artifacts.ArtifactError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(
+        path,
+        media_type=artifacts.media_type(name),
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/")

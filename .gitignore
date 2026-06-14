@@ -41,3 +41,15 @@ CLAUDE.md
 SPEC.md
 _skidl_gen.*
 skidl_REPL.*
+
+# Frontend (Node / Vite / TypeScript)
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/*.local
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
