@@ -77,6 +77,24 @@ class SKiDLAdapter:
                             lib = _lib
                     super().__init__(lib, name, *args, **kwargs)
 
+                def __getitem__(self, key):
+                    # Tolerate a common LLM slip: addressing a single-pin part
+                    # (PWR_FLAG, test points) by a made-up name like ["flag"]
+                    # instead of [1]. Only single-pin parts fall back; multi-pin
+                    # parts keep normal behavior so real errors aren't masked.
+                    try:
+                        result = super().__getitem__(key)
+                    except Exception:
+                        result = None
+                    if result is None and isinstance(key, str):
+                        pins = self.get_pins()
+                        if pins is not None:
+                            if not isinstance(pins, (list, tuple)):
+                                pins = [pins]
+                            if len(pins) == 1:
+                                return pins[0]
+                    return result
+
             _skidl.Part = _NormalizedPart
 
             # 2. Force auto_stub on generate_schematic: SKiDL's wire auto-router
