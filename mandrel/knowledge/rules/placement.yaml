@@ -1,0 +1,85 @@
+# Tier-0 authored rules: component placement, spacing, orientation, connectors.
+rules:
+  - id: spacing-min-courtyard-gap
+    category: spacing
+    severity: must
+    statement: >-
+      Keep a clear gap of at least 0.5 mm between the courtyards of any two
+      components so there is room for solder fillets, rework, and assembly.
+    constraints:
+      min_courtyard_gap_mm: 0.5
+    applicability: {}
+    rationale: Courtyard overlap fails DRC and makes assembly/rework difficult.
+    tags: [spacing, dfm]
+
+  - id: spacing-edge-keepout
+    category: spacing
+    severity: should
+    statement: >-
+      Keep components (and their courtyards) at least 1 mm inside the board
+      edge, and clear of mounting-hole keep-outs.
+    constraints:
+      min_edge_clearance_mm: 1.0
+    applicability: {}
+    rationale: Allows for board routing tolerance, panel rails, and hardware.
+    tags: [spacing, edge]
+
+  - id: orientation-passives-align
+    category: orientation
+    severity: should
+    statement: >-
+      Align two-pin passives (R/C) to a common axis (all 0 deg or all 90 deg)
+      and group like values; avoid arbitrary rotations.
+    applicability:
+      part_classes: [resistor, decoupling_cap, bulk_cap]
+    rationale: Consistent orientation improves assembly yield and inspectability.
+    tags: [orientation, dfm]
+
+  - id: orientation-connector-faces-edge
+    category: connector
+    severity: must
+    statement: >-
+      Orient edge connectors (USB, headers) so their mating opening faces the
+      board edge and overhangs/aligns to it; never point a receptacle inward.
+    constraints:
+      face_board_edge: true
+    applicability:
+      part_classes: [usb, connector]
+    rationale: A connector facing inward cannot be mated once enclosed.
+    tags: [orientation, connector, mechanical]
+
+  - id: placement-power-chain-by-edge
+    category: placement
+    severity: should
+    statement: >-
+      Place the power-input chain (USB/connector -> protection -> regulator)
+      together along the entry edge, with the regulator close to the input
+      connector and its output routed toward the loads.
+    applicability:
+      part_classes: [usb, connector, ldo, regulator]
+      net_classes: [power]
+    rationale: Short, localised power entry reduces noise and routing length.
+    tags: [placement, power]
+
+  - id: placement-mcu-central
+    category: placement
+    severity: should
+    statement: >-
+      Place the MCU (the highest-pin-count part) centrally so its many nets fan
+      out with short, balanced routes; cluster each peripheral near the MCU
+      pins it connects to.
+    applicability:
+      part_classes: [mcu]
+    rationale: Central placement minimises and balances fan-out routing.
+    tags: [placement, routing]
+
+  - id: placement-sensor-grouping
+    category: placement
+    severity: advisory
+    statement: >-
+      Group I2C/SPI sensors along a shared bus path and keep environmental
+      sensors (temp/humidity) away from heat sources like regulators and the MCU.
+    applicability:
+      part_classes: [sensor]
+    rationale: Self-heating biases temperature/humidity readings.
+    tags: [placement, sensor, thermal]

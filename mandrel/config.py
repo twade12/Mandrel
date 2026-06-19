@@ -56,5 +56,12 @@ class Settings(BaseSettings):
     # KiCad footprint library path (S4 placement loads .pretty dirs from here)
     kicad_footprint_path: str = "/usr/share/kicad/footprints"
 
+    # ── Design-knowledge base (paid tier) ─────────────────────────────────────
+    # When enabled, Mandrel consults a structured best-practice rule base during
+    # architecture/schematic/layout. The OSS core runs with this off (Null
+    # provider). knowledge_packs_dir defaults to the bundled starter pack.
+    knowledge_enabled: bool = True
+    knowledge_packs_dir: str = ""
+
 
 settings = Settings()

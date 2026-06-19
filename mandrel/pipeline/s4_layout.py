@@ -112,6 +112,11 @@ class LayoutStage:
         usb_fixed = feather_template.usb_c_fixed_placements(components, BOARD_WIDTH_MM)
         free_components = [c for c in components if c["ref"] not in usb_fixed]
 
+        # Design-knowledge: pull placement best-practices relevant to the parts
+        # on this board and inject them into the LLM prompt (paid KB; Null is a
+        # no-op for the OSS core).
+        knowledge_text = _placement_knowledge(components, form_factor)
+
         pcb_path    = output_dir / "board.kicad_pcb"
         script_path = output_dir / "placement.py"
         dsn_path    = output_dir / "board.dsn"
@@ -125,6 +130,7 @@ class LayoutStage:
             placements = await self._propose_placements(
                 ctx, free_components, arch_json, form_factor,
                 BOARD_LENGTH_MM, BOARD_WIDTH_MM, drc_feedback, keep_in,
+                knowledge_text,
             )
             if not placements:
                 return StageResult(
@@ -270,6 +276,7 @@ class LayoutStage:
         board_w_mm: float,
         drc_feedback: str,
         keep_in: tuple[float, float, float, float],
+        knowledge_text: str = "",
     ) -> list[dict]:
         """LLM placement proposal with JSON-parse retries.
 
@@ -277,6 +284,10 @@ class LayoutStage:
         errors so the model can move the offending parts.
         """
         kx0, ky0, kx1, ky1 = keep_in
+        knowledge_block = (
+            f"\n\nDESIGN BEST-PRACTICES (apply these — they are domain rules, not "
+            f"suggestions):\n{knowledge_text}\n" if knowledge_text else ""
+        )
         for attempt in range(1, self._max_retries + 1):
             prompt = S4_PLACEMENT_GEN.format(
                 board_l_mm=board_l_mm,
@@ -285,7 +296,7 @@ class LayoutStage:
                 components_json=json.dumps(components, indent=2),
                 arch_json=arch_json,
                 keep_in_x0=kx0, keep_in_y0=ky0, keep_in_x1=kx1, keep_in_y1=ky1,
-            )
+            ) + knowledge_block
             if drc_feedback:
                 prompt += (
                     "\n\nYOUR PREVIOUS LAYOUT FAILED DRC. Revise the positions to "
@@ -319,6 +330,32 @@ class LayoutStage:
 
 def _existing(paths: list[Path]) -> list[Path]:
     return [p for p in paths if p.exists()]
+
+
+def _placement_knowledge(components: list[dict], form_factor: str) -> str:
+    """Retrieve placement-relevant design rules for the parts on this board.
+
+    Returns a prompt-injectable block, or "" when no knowledge base is active
+    (OSS core → NullKnowledgeProvider). Never raises into the pipeline.
+    """
+    try:
+        from mandrel.knowledge import RuleQuery, get_provider
+        from mandrel.knowledge.classify import classify_all
+        from mandrel.knowledge.provider import format_rules_for_prompt
+
+        provider = get_provider()
+        if provider.is_empty():
+            return ""
+        rules = provider.query(RuleQuery(
+            stage="s4_layout",
+            categories=["spacing", "orientation", "connector", "placement",
+                        "decoupling", "oscillator", "rf", "ground_plane"],
+            part_classes=classify_all(components),
+            form_factor=form_factor,
+        ))
+        return format_rules_for_prompt(rules)
+    except Exception:
+        return ""
 
 
 def _unavailable_result(state: DesignState, reason: str) -> StageResult:

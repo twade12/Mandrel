@@ -1,0 +1,58 @@
+# Tier-0 authored rules: decoupling / bypass capacitors.
+# Facts of standard PCB practice; expression authored for Mandrel (Apache-2.0).
+rules:
+  - id: decap-proximity-power-pin
+    category: decoupling
+    severity: must
+    statement: >-
+      Place each decoupling capacitor immediately adjacent to the IC power pin
+      it serves (within 1 mm of the pad), on the same side, so the cap-to-pin
+      loop is as short as possible.
+    constraints:
+      max_distance_mm: 1.0
+      same_side: true
+    applicability:
+      part_classes: [decoupling_cap, mcu, ic, sensor, ldo]
+      net_classes: [power]
+    rationale: >-
+      Loop inductance between the cap and the pin determines high-frequency
+      decoupling effectiveness; every extra millimetre adds inductance.
+    tags: [proximity, power-integrity]
+
+  - id: decap-one-per-power-pin
+    category: decoupling
+    severity: should
+    statement: >-
+      Provide one 100 nF decoupling capacitor per IC power/VDD/VDDIO pin, plus
+      a shared bulk capacitor (1-10 µF) near the device.
+    applicability:
+      part_classes: [mcu, ic, sensor]
+      net_classes: [power]
+    rationale: Per-pin decoupling keeps each supply rail locally stiff.
+    tags: [count, power-integrity]
+
+  - id: decap-via-to-plane
+    category: decoupling
+    severity: should
+    statement: >-
+      Connect the decoupling capacitor's ground pad to the ground plane with a
+      dedicated via right at the pad (not a shared via several mm away).
+    applicability:
+      part_classes: [decoupling_cap]
+      net_classes: [ground]
+    rationale: A close ground via minimises the return-path inductance.
+    tags: [via, ground]
+
+  - id: bulk-cap-near-regulator
+    category: decoupling
+    severity: should
+    statement: >-
+      Place the regulator's input and output bulk capacitors within a few mm of
+      the regulator's IN and OUT pins respectively.
+    constraints:
+      max_distance_mm: 5.0
+    applicability:
+      part_classes: [bulk_cap, ldo, regulator]
+      net_classes: [power]
+    rationale: Keeps the regulator loop tight and stable.
+    tags: [regulator, stability]

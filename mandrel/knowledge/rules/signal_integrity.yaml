@@ -1,0 +1,91 @@
+# Tier-0 authored rules: oscillators, RF, traces, ground planes, EMC.
+rules:
+  - id: osc-crystal-close-to-mcu
+    category: oscillator
+    severity: must
+    statement: >-
+      Place the crystal/oscillator as close as possible to the MCU's XIN/XOUT
+      pins with the shortest symmetric traces; keep load capacitors right at the
+      crystal pins.
+    constraints:
+      max_distance_mm: 5.0
+    applicability:
+      part_classes: [crystal, oscillator]
+      net_classes: [clock]
+    rationale: Long clock traces add capacitance/inductance and radiate.
+    tags: [oscillator, clock]
+
+  - id: osc-guard-ground
+    category: oscillator
+    severity: should
+    statement: >-
+      Surround the crystal and its traces with a local ground pour/guard ring
+      tied to the ground plane, and keep noisy signals away from the oscillator.
+    applicability:
+      part_classes: [crystal, oscillator]
+      net_classes: [clock]
+    rationale: Guarding contains clock emissions and rejects coupled noise.
+    tags: [oscillator, emc, ground]
+
+  - id: rf-50ohm-controlled-impedance
+    category: rf
+    severity: must
+    statement: >-
+      Route RF/antenna traces as controlled-impedance (typically 50 ohm) lines,
+      as short and straight as possible, with continuous reference ground.
+    applicability:
+      part_classes: [antenna]
+      net_classes: [rf]
+    rationale: Impedance discontinuities cause reflections and loss.
+    tags: [rf, impedance]
+
+  - id: rf-antenna-keepout
+    category: rf
+    severity: must
+    statement: >-
+      Keep all copper (including ground pour and the ground plane) out of the
+      antenna keep-out region, and place the antenna at a board edge/corner.
+    constraints:
+      antenna_keepout: true
+    applicability:
+      part_classes: [antenna]
+      net_classes: [rf]
+    rationale: Nearby copper detunes the antenna and kills range.
+    tags: [rf, keepout]
+
+  - id: trace-width-by-current
+    category: trace
+    severity: should
+    statement: >-
+      Size power traces for their current (e.g. >= 0.3 mm for ~0.5 A on 1 oz
+      outer copper); use the widest practical width for VBUS/3V3/GND feeds.
+    constraints:
+      min_power_trace_mm: 0.3
+    applicability:
+      net_classes: [power]
+    rationale: Undersized power traces drop voltage and heat up.
+    tags: [trace, power, thermal]
+
+  - id: ground-solid-plane
+    category: ground_plane
+    severity: must
+    statement: >-
+      Use one solid, continuous ground plane layer; avoid splitting it under
+      signal traces so every signal has an unbroken return path directly beneath.
+    constraints:
+      solid_plane: true
+    applicability:
+      net_classes: [ground]
+    rationale: A continuous plane gives low-impedance, low-EMI return paths.
+    tags: [ground, emc, return-path]
+
+  - id: ground-stitching-vias
+    category: ground_plane
+    severity: should
+    statement: >-
+      Stitch ground pours and planes together with vias around the board edge
+      and near high-speed/clock parts to keep plane potential uniform.
+    applicability:
+      net_classes: [ground]
+    rationale: Stitching suppresses plane resonances and edge radiation.
+    tags: [ground, via, emc]
