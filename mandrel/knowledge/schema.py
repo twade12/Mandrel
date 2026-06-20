@@ -52,16 +52,18 @@ class DesignRule(BaseModel):
 
     id: str
     category: Category
-    statement: str                       # natural-language rule, injected into prompts
+    # natural-language rule, injected into prompts
+    statement: str
     severity: Severity = "should"
-    constraints: dict[str, Any] = Field(default_factory=dict)  # numeric/structured (e.g. max_distance_mm)
+    # numeric/structured constraints, e.g. {"max_distance_mm": 1.0}
+    constraints: dict[str, Any] = Field(default_factory=dict)
     applicability: Applicability = Field(default_factory=Applicability)
     rationale: str = ""
     tags: list[str] = Field(default_factory=list)
 
     # Provenance / licensing — mandatory discipline for the commercial KB.
     source: str = "authored"             # URL, doc id, or "authored"
-    license: str = "Apache-2.0"          # of the rule's expression as stored here
+    license: str = "Apache-2.0"          # license of the rule's expression here
     confidence: float = 0.8              # 0..1 authority/trust
 
     def matches(self, query: RuleQuery) -> bool:

@@ -27,6 +27,15 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=8002, help="Bind port (default: 8000)")
     serve.add_argument("--reload", action="store_true", help="Enable auto-reload (development)")
 
+    ing = sub.add_parser("ingest", help="Ingest design knowledge into a rule pack")
+    ing.add_argument("--out", default="", help="Output YAML pack (default: bundled ingested.yaml)")
+    ing.add_argument("--url", action="append", default=[], help="Web URL to ingest (repeatable)")
+    ing.add_argument("--license", default="unknown", help="License of the --url/--design sources")
+    ing.add_argument("--text", action="append", default=[], help="Local text/markdown file (repeatable)")
+    ing.add_argument("--design", action="append", default=[],
+                     help="Permissive .kicad_pcb to measure (Tier-1, repeatable)")
+    ing.add_argument("--firecrawl-key", default="", help="Firecrawl API key for cleaner web extraction")
+
     run = sub.add_parser("run", help="Run the Phase 1+2 pipeline (S1 → S2 → S3 → S5)")
     run.add_argument("--brief", required=True, help="Plain-English product description")
     run.add_argument(
@@ -182,6 +191,39 @@ def _serve(args: argparse.Namespace) -> None:
     )
 
 
+async def _ingest(args: argparse.Namespace) -> None:
+    from pathlib import Path
+
+    from mandrel.knowledge.ingest import IngestPipeline
+    from mandrel.knowledge.ingest.sources import from_text_file, from_url
+    from mandrel.llm.provider import make_default_provider
+
+    out = args.out or str(Path(__file__).parent / "knowledge" / "rules" / "ingested.yaml")
+    llm = make_default_provider()
+    pipe = IngestPipeline(llm, out)
+    try:
+        docs = []
+        for t in args.text:
+            docs.append(from_text_file(t, license="authored", tier=0))
+        for u in args.url:
+            try:
+                docs.append(from_url(u, license=args.license, firecrawl_key=args.firecrawl_key))
+            except Exception as exc:
+                print(f"  ! fetch failed {u}: {exc}")
+        if docs:
+            print(f"Extracting rules from {len(docs)} document(s)…")
+            await pipe.ingest_documents(docs)
+        if args.design:
+            print(f"Measuring {len(args.design)} reference design(s)…")
+            pipe.ingest_kicad_designs(args.design, license=args.license)
+        pipe.save()
+    finally:
+        await llm.aclose()
+
+    print(f"\n{pipe.stats.summary()}")
+    print(f"→ {out}")
+
+
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
@@ -190,6 +232,8 @@ def main() -> None:
         _serve(args)
     elif args.command == "run":
         asyncio.run(_run(args))
+    elif args.command == "ingest":
+        asyncio.run(_ingest(args))
     else:
         parser.print_help()
         sys.exit(0)
