@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { artifactUrl } from "../../api";
 import { useStore } from "../../state";
+import { PanZoom } from "../PanZoom";
 
 // Renders an SVG artifact served by the backend. Polls a few times after the
 // stage reports ready (the file is generated lazily on first request), then
@@ -34,13 +35,19 @@ export function ArtifactImage({ name, ready, hint }: { name: string; ready: bool
             <span className="muted">The stage may still be running, or this artifact failed to render. Try ⟳ refresh.</span>
           </div>
         )}
-        <img
-          src={url}
-          alt={name}
-          onLoad={() => setStatus("ok")}
-          onError={() => setStatus("error")}
-          style={{ display: status === "ok" ? "block" : "none" }}
-        />
+        {status === "ok" ? (
+          <PanZoom>
+            <img src={url} alt={name} onError={() => setStatus("error")} style={{ width: "100%", display: "block" }} />
+          </PanZoom>
+        ) : (
+          <img
+            src={url}
+            alt={name}
+            onLoad={() => setStatus("ok")}
+            onError={() => setStatus("error")}
+            style={{ display: "none" }}
+          />
+        )}
       </div>
     </div>
   );
