@@ -117,7 +117,15 @@ class SKiDLAdapter:
             _orig_gen_sch = _skidl.generate_schematic
 
             def _gen_schematic(*args, **kwargs):
+                # auto_stub alone still invokes SKiDL's wire router on the
+                # un-stubbed nets, which is broken on py3.12 (part.top_track
+                # AttributeError) for multi-IC designs. Stub aggressively
+                # (fanout>=2, max 1 wire-pin) so essentially every net becomes a
+                # global label and the router never runs — a valid, openable,
+                # label-style .kicad_sch on any complexity.
                 kwargs.setdefault("auto_stub", True)
+                kwargs.setdefault("auto_stub_fanout", 2)
+                kwargs.setdefault("auto_stub_max_wire_pins", 1)
                 _inject_pwr_flags()
                 return _orig_gen_sch(*args, **kwargs)
 
