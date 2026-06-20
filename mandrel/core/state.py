@@ -125,6 +125,9 @@ class PcbArtifact(BaseModel):
     board_step_path: str | None = None
     pos_file_path: str | None = None
     drc_result: VerifierResult | None = None
+    # Explainable, KB-driven evaluation of the placement: which best-practice
+    # rules applied, what was measured, and pass/fail — the "why" behind layout.
+    placement_rationale: list[dict] = Field(default_factory=list)
 
 
 # ── S5: Enclosure / fixture ───────────────────────────────────────────────────

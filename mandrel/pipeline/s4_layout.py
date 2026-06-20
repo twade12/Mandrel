@@ -113,9 +113,10 @@ class LayoutStage:
         free_components = [c for c in components if c["ref"] not in usb_fixed]
 
         # Design-knowledge: pull placement best-practices relevant to the parts
-        # on this board and inject them into the LLM prompt (paid KB; Null is a
-        # no-op for the OSS core).
-        knowledge_text = _placement_knowledge(components, form_factor)
+        # on this board. The rules drive both the LLM prompt and the explainable
+        # post-placement evaluation (paid KB; empty for the OSS core).
+        knowledge_rules = _placement_rules(components, form_factor)
+        knowledge_text = _format_rules(knowledge_rules)
 
         pcb_path    = output_dir / "board.kicad_pcb"
         script_path = output_dir / "placement.py"
@@ -253,11 +254,23 @@ class LayoutStage:
         if drc_result is None:  # defensive: loop always sets it
             drc_result = VerifierResult(passed=False, score=0.0)
 
+        # Explainable KB evaluation of the final placement — the "why" the UI
+        # shows (which best-practices applied, what was measured, pass/fail).
+        rationale = _evaluate_placement_rules(components, placements, knowledge_rules)
+        if rationale:
+            n_fail = sum(1 for r in rationale if r.get("status") == "fail")
+            await ctx.progress(
+                self.name,
+                f"Evaluated layout against {len(rationale)} design rules "
+                f"({n_fail} not yet met).",
+            )
+
         new_state = state.model_copy(update={
             "pcb": PcbArtifact(
                 kicad_pcb_path=str(pcb_path) if pcb_path.exists() else None,
                 board_step_path=step_str,
                 drc_result=drc_result,
+                placement_rationale=rationale,
             )
         })
         return StageResult(
@@ -332,30 +345,47 @@ def _existing(paths: list[Path]) -> list[Path]:
     return [p for p in paths if p.exists()]
 
 
-def _placement_knowledge(components: list[dict], form_factor: str) -> str:
+def _placement_rules(components: list[dict], form_factor: str) -> list:
     """Retrieve placement-relevant design rules for the parts on this board.
 
-    Returns a prompt-injectable block, or "" when no knowledge base is active
-    (OSS core → NullKnowledgeProvider). Never raises into the pipeline.
+    Returns DesignRule objects (empty when no KB is active — OSS core uses the
+    NullKnowledgeProvider). Never raises into the pipeline.
     """
     try:
         from mandrel.knowledge import RuleQuery, get_provider
         from mandrel.knowledge.classify import classify_all
-        from mandrel.knowledge.provider import format_rules_for_prompt
 
         provider = get_provider()
         if provider.is_empty():
-            return ""
-        rules = provider.query(RuleQuery(
+            return []
+        return provider.query(RuleQuery(
             stage="s4_layout",
             categories=["spacing", "orientation", "connector", "placement",
                         "decoupling", "oscillator", "rf", "ground_plane"],
             part_classes=classify_all(components),
             form_factor=form_factor,
         ))
+    except Exception:
+        return []
+
+
+def _format_rules(rules: list) -> str:
+    try:
+        from mandrel.knowledge.provider import format_rules_for_prompt
         return format_rules_for_prompt(rules)
     except Exception:
         return ""
+
+
+def _evaluate_placement_rules(components, placements, rules) -> list[dict]:
+    """Explainable evaluation of the final placement against the KB rules."""
+    if not rules:
+        return []
+    try:
+        from mandrel.knowledge.evaluate import evaluate_placement
+        return [e.model_dump() for e in evaluate_placement(components, placements, rules)]
+    except Exception:
+        return []
 
 
 def _unavailable_result(state: DesignState, reason: str) -> StageResult:
