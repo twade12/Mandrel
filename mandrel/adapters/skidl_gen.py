@@ -78,10 +78,16 @@ class SKiDLAdapter:
                     super().__init__(lib, name, *args, **kwargs)
 
                 def __getitem__(self, key):
-                    # Tolerate a common LLM slip: addressing a single-pin part
-                    # (PWR_FLAG, test points) by a made-up name like ["flag"]
-                    # instead of [1]. Only single-pin parts fall back; multi-pin
-                    # parts keep normal behavior so real errors aren't masked.
+                    # Tolerate two recurring LLM slips that otherwise crash the
+                    # whole script (a missing pin returns None, and `pin += None`
+                    # raises an opaque TypeError):
+                    #  1. naming a single-pin part (PWR_FLAG) by a made-up name
+                    #     -> fall back to the sole pin.
+                    #  2. naming a NON-existent pin on a multi-pin part (e.g. a
+                    #     hallucinated RP2040 "VREG_INTERNAL") -> return a
+                    #     throwaway net so the connection is a harmless no-op and
+                    #     the run completes (the bad join is dropped + warned,
+                    #     and ERC/DRC flag the floating pin).
                     try:
                         result = super().__getitem__(key)
                     except Exception:
@@ -93,6 +99,12 @@ class SKiDLAdapter:
                                 pins = [pins]
                             if len(pins) == 1:
                                 return pins[0]
+                        print(
+                            f"WARN: unknown pin {{key!r}} on "
+                            f"{{getattr(self, 'ref', '?')}}; dropping connection",
+                            file=sys.stderr,
+                        )
+                        return _skidl.Net()
                     return result
 
             _skidl.Part = _NormalizedPart
