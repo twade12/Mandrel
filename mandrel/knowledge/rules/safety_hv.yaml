@@ -1,0 +1,59 @@
+rules:
+  - id: creepage-clearance-ipc2221
+    category: safety_hv
+    severity: must
+    statement: >-
+      Apply IPC-2221 Table 6-1 conductor spacing by working voltage and coating; for
+      >500 V add per-volt spacing (uncoated external: 2.5 + 0.005×(V−500) mm). Where a
+      product safety standard (IEC/UL 62368-1, 61010-1) applies, its creepage/clearance
+      values are mandatory and override IPC.
+    constraints:
+      hv_step_per_volt_mm: 0.005
+    applicability:
+      part_classes: [connector, ic]
+      net_classes: [power]
+    rationale: >-
+      Clearance (air) prevents arc-over; creepage (surface) prevents tracking. IPC-2221 is
+      functional/voluntary; safety-agency tables are legally required for certified products.
+    tags: [safety, creepage, clearance, ipc-2221]
+  - id: creepage-material-pollution
+    category: safety_hv
+    severity: must
+    statement: >-
+      Set creepage from working voltage, pollution degree, and material group (CTI); e.g.
+      ~2.5 mm creepage for 250 Vrms in pollution degree 2. Double the distance for
+      reinforced/double insulation.
+    constraints:
+      example_creepage_250v_pd2_mm: 2.5
+    applicability:
+      part_classes: [connector]
+      net_classes: [power]
+    rationale: >-
+      Surface tracking depends on contamination and tracking index; reinforced insulation
+      between mains and SELV requires doubled spacing (IEC 62368-1).
+    tags: [safety, creepage, pollution-degree]
+  - id: hv-slots-barriers
+    category: safety_hv
+    severity: should
+    statement: >-
+      Use milled slots, V-grooves, or notches between high-voltage conductors to extend
+      creepage where board area is constrained; place HV and LV circuits on opposite sides.
+    applicability:
+      part_classes: [connector]
+      net_classes: [power]
+    rationale: >-
+      A slot interrupts the surface path, multiplying effective creepage cheaply.
+    tags: [safety, hv, slot]
+  - id: conformal-coating-hv
+    category: safety_hv
+    severity: advisory
+    statement: >-
+      Specify conformal coating (high CTI, moisture-resistant) for HV boards in polluted
+      or humid environments and reflect the coated spacing column in clearance checks.
+    applicability:
+      part_classes: [connector]
+      net_classes: [power]
+    rationale: >-
+      Coating reduces tracking/CAF risk and allows the smaller coated-conductor spacing
+      values.
+    tags: [safety, conformal-coating]

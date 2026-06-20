@@ -1,0 +1,105 @@
+rules:
+  - id: connector-strain-relief
+    category: connectors_mechanical
+    severity: should
+    statement: >-
+      Provide mounting holes / through-hole anchors / board locks for connectors that see
+      mating force; orient connectors at the board edge for cable access.
+    applicability:
+      part_classes: [connector, usb]
+      net_classes: []
+    rationale: >-
+      Repeated insertion stresses solder joints; mechanical anchoring offloads that force.
+    tags: [connector, strain-relief]
+  - id: mounting-hole-keepout
+    category: connectors_mechanical
+    severity: must
+    statement: >-
+      Provide a copper/component keepout around mounting holes sized for the screw head/
+      washer, keeping copper ≥2 mm from the hole edge unless intentionally connected.
+    constraints:
+      copper_keepout_mm: 2.0
+    applicability:
+      part_classes: [connector]
+      net_classes: []
+    rationale: >-
+      Screw heads/washers can short to nearby copper and crack adjacent components.
+    tags: [mounting-hole, keepout]
+  - id: enclosure-clearance
+    category: connectors_mechanical
+    severity: should
+    statement: >-
+      Respect 3D enclosure and tall-component clearances; keep components out of standoff,
+      rib, and lid-intrusion zones.
+    applicability:
+      part_classes: [connector, bulk_cap]
+      net_classes: []
+    rationale: >-
+      Mechanical interference prevents assembly and can stress the board.
+    tags: [enclosure, clearance, mechanical]
+  - id: panel-vscore-web
+    category: connectors_mechanical
+    severity: should
+    statement: >-
+      For V-scored panels, leave a residual web of ~1/3 board thickness (0.3–0.5 mm
+      typical; 0.2 mm for thin boards) at a 30–45° score angle; keep components ≥1 mm from
+      the score line and copper ≥0.5 mm from it.
+    constraints:
+      vscore_web_fraction: 0.33
+      vscore_angle_deg: 30
+      component_to_vscore_mm: 1.0
+    applicability:
+      part_classes: [connector]
+      net_classes: []
+    rationale: >-
+      Too thin a web breaks in handling; too thick won't depanel cleanly; components near
+      the score crack from flexing (multiple fab guides).
+    tags: [panelization, v-score]
+  - id: panel-mousebite-tabs
+    category: connectors_mechanical
+    severity: should
+    statement: >-
+      For tab-route panels use breakaway tabs ~2 mm routing gap with mouse-bite holes
+      0.5–0.8 mm diameter on 0.25–0.5 mm spacing; provide 3–5 tabs per board and keep
+      components ≥2 mm from tabs.
+    constraints:
+      mousebite_hole_mm: 0.5
+      routing_gap_mm: 2.0
+      component_to_tab_mm: 2.0
+    applicability:
+      part_classes: [connector]
+      net_classes: []
+    rationale: >-
+      Perforated tabs allow clean depaneling; spacing keeps components clear of breakaway
+      stress and protrusions (0.2–0.5 mm flash).
+    tags: [panelization, mouse-bite, tab-route]
+  - id: panel-rails
+    category: connectors_mechanical
+    severity: should
+    statement: >-
+      Add breakaway rails 5–10 mm wide on at least two edges for conveyor/assembly
+      handling, carrying fiducials and tooling holes.
+    constraints:
+      rail_width_min_mm: 5
+    applicability:
+      part_classes: []
+      net_classes: []
+    rationale: >-
+      Rails give SMT conveyors grip area and host global fiducials/tooling holes clear of
+      the working board.
+    tags: [panelization, rails]
+  - id: board-thickness-standard
+    category: connectors_mechanical
+    severity: advisory
+    statement: >-
+      Default to 1.6 mm board thickness unless mechanical/impedance needs dictate
+      otherwise; specify thickness tolerance (±10%).
+    constraints:
+      default_thickness_mm: 1.6
+    applicability:
+      part_classes: []
+      net_classes: []
+    rationale: >-
+      1.6 mm is the most cost-effective industry standard with widest connector/edge
+      compatibility.
+    tags: [mechanical, thickness]

@@ -12,20 +12,25 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-Category = Literal[
-    "decoupling",
-    "oscillator",
-    "rf",
-    "connector",
-    "trace",
-    "ground_plane",
-    "orientation",
-    "spacing",
-    "placement",
-    "thermal",
-    "emc",
-    "power",
-]
+# Categories are intentionally OPEN strings so the knowledge base can grow via
+# authoring or ingestion without a schema change every time a new domain area is
+# added (e.g. future FreeCAD/mechanical: "enclosure", "fit", "mechanical").
+# KNOWN_CATEGORIES documents the curated taxonomy for the UI and the extractor;
+# it is reference, not enforcement.
+Category = str
+
+KNOWN_CATEGORIES: tuple[str, ...] = (
+    # electrical / layout
+    "decoupling", "power_integrity", "grounding", "ground_plane", "signal_integrity",
+    "high_speed", "high_speed_interfaces", "rf", "rf_antenna", "antenna",
+    "oscillator", "mixed_signal", "trace", "routing", "vias", "stackup", "emc",
+    "esd_emc", "thermal", "power",
+    # placement / mechanical / manufacturing
+    "placement", "spacing", "orientation", "connector", "connectors_mechanical",
+    "dfm", "dfa", "silkscreen", "test_debug", "safety_hv",
+    # reserved for FreeCAD / enclosure work
+    "enclosure", "fit", "mechanical",
+)
 
 Severity = Literal["must", "should", "advisory"]
 

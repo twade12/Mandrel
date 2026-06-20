@@ -56,3 +56,47 @@ rules:
       net_classes: [power]
     rationale: Keeps the regulator loop tight and stable.
     tags: [regulator, stability]
+  - id: decap-smallest-closest
+    category: decoupling
+    severity: should
+    statement: >-
+      Place the smallest-value (highest-SRF) decoupling capacitor closest to the power
+      pin, with the shortest possible loop (pad→via→plane) to minimize mounting inductance.
+    applicability:
+      part_classes: [decoupling_cap, ic, mcu]
+      net_classes: [power, ground]
+    rationale: >-
+      Loop inductance, not capacitance, limits high-frequency decoupling; proximity and
+      via placement dominate effectiveness.
+    tags: [decoupling, placement, esl]
+
+  - id: decap-parallel-identical
+    category: decoupling
+    severity: should
+    statement: >-
+      Prefer multiple identical-value capacitors in parallel over many disparate values
+      to lower ESL without creating anti-resonant peaks.
+    applicability:
+      part_classes: [decoupling_cap]
+      net_classes: [power, ground]
+    rationale: >-
+      Mixing widely different values creates anti-resonances between caps; identical caps
+      simply lower impedance (Altium PI).
+    tags: [decoupling, parallel, anti-resonance]
+    
+  - id: decap-converter-vd-pin
+    category: decoupling
+    severity: should
+    statement: >-
+      Mount a low-inductance 0.01–0.1 µF ceramic decoupling cap directly at a data
+      converter's VD/VDD pin.
+    constraints:
+      cap_uf_min: 0.01
+      cap_uf_max: 0.1
+    applicability:
+      part_classes: [ic, decoupling_cap]
+      net_classes: [power, ground]
+    rationale: >-
+      Confines transient digital current to a tiny local loop, keeping it off the analog
+      reference (ADI MT-031).
+    tags: [decoupling, converter]

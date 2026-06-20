@@ -1,0 +1,93 @@
+rules:
+  - id: signal-adjacent-reference
+    category: stackup
+    severity: must
+    statement: >-
+      Place every signal layer immediately adjacent to a solid reference plane (GND
+      preferred); for critical high-speed routes, bury between two planes.
+    applicability:
+      part_classes: [ic, mcu]
+      net_classes: [signal, clock, rf]
+    rationale: >-
+      Return current must flow on an adjacent plane to minimize loop area, crosstalk, and
+      EMI; the plane is the primary EMI-shielding mechanism.
+    tags: [stackup, reference-plane, return-path]
+  - id: symmetric-stackup
+    category: stackup
+    severity: must
+    statement: >-
+      Build a symmetric (balanced) stackup about the center, with matched copper
+      distribution per layer (aim 40–60% fill).
+    applicability:
+      part_classes: []
+      net_classes: []
+    rationale: >-
+      Asymmetric copper/dielectric causes differential thermal stress and board warp
+      during reflow.
+    tags: [stackup, symmetry, warp]
+  - id: stackup-4layer-standard
+    category: stackup
+    severity: should
+    statement: >-
+      For 4-layer boards use SIG / GND / PWR / SIG with the ground plane on layer 2 and
+      tight (3–5 mil) layer-2 prepreg to the top signal layer.
+    applicability:
+      part_classes: []
+      net_classes: [signal, power, ground]
+    rationale: >-
+      GND directly under the top layer gives high-speed top-side routes a clean return
+      and forms a power-ground plane pair for decoupling.
+    tags: [stackup, 4-layer]
+  - id: stackup-6layer-standard
+    category: stackup
+    severity: should
+    statement: >-
+      For general-purpose 6-layer boards use SIG / GND / SIG / PWR / GND / SIG (symmetric
+      3-core); route the most critical high-speed nets on the buried layer between two planes.
+    applicability:
+      part_classes: []
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Provides adjacent references to all signal layers and a PWR/GND plane pair; avoids
+      the common failure of two adjacent middle signal layers.
+    tags: [stackup, 6-layer]
+  - id: avoid-adjacent-signal-layers
+    category: stackup
+    severity: must
+    statement: >-
+      Do not place two signal layers directly adjacent with no plane between them.
+    applicability:
+      part_classes: []
+      net_classes: [signal, clock]
+    rationale: >-
+      Adjacent signal layers have no defined return reference, producing broadside
+      crosstalk and uncontrolled impedance (documented PCIe respin failures).
+    tags: [stackup, crosstalk]
+  - id: power-ground-plane-pairing
+    category: stackup
+    severity: should
+    statement: >-
+      Pair power and ground planes on closely-spaced adjacent layers to maximize
+      interplane capacitance.
+    applicability:
+      part_classes: []
+      net_classes: [power, ground]
+    rationale: >-
+      Thin PWR/GND dielectric forms distributed bypass capacitance, improving PDN at high
+      frequency.
+    tags: [stackup, plane-capacitance, pdn]
+  - id: stitching-caps-plane-change
+    category: stackup
+    severity: should
+    statement: >-
+      When a high-speed signal references different planes on entry/exit layers, place a
+      stitching capacitor (e.g., 100 nF, 0402/0603) between those planes near the via.
+    constraints:
+      stitch_cap_nf: 100
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, clock]
+    rationale: >-
+      Return current must transfer between mismatched reference planes; a stitching cap
+      provides the AC path and limits return-loop area.
+    tags: [stackup, stitching-cap, return-path]

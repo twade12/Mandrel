@@ -1,0 +1,80 @@
+rules:
+  - id: via-current-derate
+    category: vias
+    severity: should
+    statement: >-
+      Use multiple parallel vias to carry high current between layers; size and count
+      them so each barrel stays within its thermal limit, and fill vias in high-current paths.
+    applicability:
+      part_classes: [regulator, connector]
+      net_classes: [power, ground]
+    rationale: >-
+      A single via barrel has limited ampacity; paralleling shares current and lowers
+      resistance/heat.
+    tags: [via, current, power]
+  - id: via-in-pad-fill
+    category: vias
+    severity: must
+    statement: >-
+      When placing vias in component pads (BGA fan-out, fine pitch), fill and cap-plate
+      them (copper or non-conductive epoxy, planarized).
+    applicability:
+      part_classes: [ic, mcu]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Unfilled via-in-pad wicks solder, causing voids/opens; filled+capped gives a flat
+      solderable surface (IPC-4761).
+    tags: [via-in-pad, fill, bga]
+  - id: via-stub-minimize
+    category: vias
+    severity: should
+    statement: >-
+      Minimize via stub length on high-speed nets (<15 mil); back-drill or use
+      blind/buried/microvias for multi-gigabit signals.
+    constraints:
+      max_stub_mil: 15
+    applicability:
+      part_classes: [ic, usb]
+      net_classes: [signal]
+    rationale: >-
+      Resonant stubs degrade the signal eye at high frequency.
+    tags: [via-stub, back-drill, high-speed]
+  - id: via-spacing-min
+    category: vias
+    severity: must
+    statement: >-
+      Keep via-to-via spacing ≥0.25 mm and pad-to-hole clearance ≥0.3 mm for standard vias.
+    constraints:
+      via_to_via_mm: 0.25
+      pad_to_hole_mm: 0.3
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Too-tight spacing risks etch/plating bridging and drill breakout (Würth/fab rules).
+    tags: [via, spacing, dfm]
+  - id: stitching-vias-return
+    category: vias
+    severity: should
+    statement: >-
+      Place ground stitching vias adjacent to every high-speed signal via that changes
+      reference layers, to carry the return current.
+    applicability:
+      part_classes: [ic, usb]
+      net_classes: [ground, signal]
+    rationale: >-
+      The return must transfer layers near the signal via; a nearby ground via (or
+      stitching cap for PWR reference) provides the path.
+    tags: [via, stitching, return-path]
+  - id: via-tenting
+    category: vias
+    severity: advisory
+    statement: >-
+      Tent or plug non-test signal vias to prevent solder wicking and accidental shorts;
+      leave intended test vias exposed.
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal]
+    rationale: >-
+      Tenting protects vias during assembly while preserving deliberate test access.
+    tags: [via, tenting]

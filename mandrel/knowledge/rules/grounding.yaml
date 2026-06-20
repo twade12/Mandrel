@@ -1,0 +1,83 @@
+rules:
+  - id: single-ground-plane-default
+    category: grounding
+    severity: should
+    statement: >-
+      Use one solid, continuous ground plane and partition analog/digital by component
+      placement rather than splitting the plane.
+    applicability:
+      part_classes: [ic, mcu, sensor]
+      net_classes: [ground]
+    rationale: >-
+      Modern consensus (Rick Hartley, citing Lee Ritchey): a split plane creates a
+      dipole/return-path detour that radiates; if analog and digital parts are physically
+      separated they "have no reason to talk," so no split is needed.
+    tags: [grounding, single-plane, consensus]
+  - id: no-signal-over-ground-split
+    category: grounding
+    severity: must
+    statement: >-
+      Do not route any signal across a gap or split in the ground plane.
+    applicability:
+      part_classes: [ic, mcu]
+      net_classes: [signal, clock]
+    rationale: >-
+      The return current cannot follow the trace across the gap, forcing a large loop
+      (noise/EMI). If unavoidable, bridge with a stitching cap adjacent to the crossing.
+    tags: [grounding, plane-split, return-path]
+  - id: ground-via-stitching
+    category: grounding
+    severity: should
+    statement: >-
+      Stitch ground planes together with vias near every signal-layer transition and
+      around board/plane edges (via fence).
+    applicability:
+      part_classes: [ic]
+      net_classes: [ground]
+    rationale: >-
+      Stitching gives return current a low-impedance path between planes and contains
+      fields at edges.
+    tags: [grounding, stitching-via]
+  - id: split-plane-at-converter
+    category: grounding
+    severity: advisory
+    statement: >-
+      Only split analog/digital ground when a high-digital-current converter demands it;
+      then join the planes at a single bridge directly under the ADC/DAC and never route
+      signals across the moat.
+    applicability:
+      part_classes: [ic, sensor]
+      net_classes: [ground]
+    rationale: >-
+      ADI MT-031: for high-digital-current converters a split joined under the device
+      confines digital return current; keep inter-plane noise <300 mV. For a single
+      low-current converter a solid plane is better.
+    tags: [grounding, mixed-signal, split, converter]
+  - id: kelvin-ground-sense
+    category: grounding
+    severity: should
+    statement: >-
+      Use Kelvin (separate force/sense) ground connections for precision sensing and
+      voltage references back to the converter ground reference.
+    applicability:
+      part_classes: [sensor, ic]
+      net_classes: [ground]
+    rationale: >-
+      Sharing a high-current ground path with a sense node injects IR-drop error into the
+      measurement.
+    tags: [grounding, kelvin, sense]
+  - id: no-isolated-ground-islands
+    category: grounding
+    severity: should
+    statement: >-
+      After pour, verify there are no isolated ground islands or thin "skinny"
+      necks; preserve ≥75% of plane area.
+    constraints:
+      min_plane_area_pct: 75
+    applicability:
+      part_classes: [ic]
+      net_classes: [ground]
+    rationale: >-
+      An IC ground pin landing in an island has no return path; necked planes raise
+      impedance (ADI MT-031).
+    tags: [grounding, plane-integrity]

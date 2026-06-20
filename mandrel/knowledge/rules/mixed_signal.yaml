@@ -1,0 +1,77 @@
+rules:
+  - id: adc-at-boundary
+    category: mixed_signal
+    severity: should
+    statement: >-
+      Place ADCs/DACs straddling the analog/digital placement boundary, analog pins
+      facing analog circuitry and digital pins facing digital.
+    applicability:
+      part_classes: [ic, sensor]
+      net_classes: [signal]
+    rationale: >-
+      Aligns each section's return currents with its own region and keeps the converter
+      the single crossing point (ADI MT-031).
+    tags: [mixed-signal, adc, placement]
+  - id: analog-digital-partition
+    category: mixed_signal
+    severity: should
+    statement: >-
+      Physically partition sensitive analog (amplifiers, references) from noisy digital
+      (logic, clocks, switchers); do not interleave.
+    applicability:
+      part_classes: [ic, sensor, oscillator]
+      net_classes: [signal, power]
+    rationale: >-
+      Spatial separation removes the field coupling that a ground split would otherwise
+      try to fix.
+    tags: [mixed-signal, partition]
+  - id: kelvin-current-sense
+    category: mixed_signal
+    severity: must
+    statement: >-
+      Route current-sense resistors with Kelvin (4-wire) connections, taking sense traces
+      from the inner pad edges symmetrically.
+    applicability:
+      part_classes: [resistor, ic]
+      net_classes: [signal]
+    rationale: >-
+      Kelvin sensing removes pad/trace IR drop and solder-joint resistance from the
+      measurement.
+    tags: [mixed-signal, kelvin, current-sense]
+  - id: reference-routing
+    category: mixed_signal
+    severity: should
+    statement: >-
+      Route voltage-reference and ADC VREF nets as short, guarded, low-impedance traces;
+      decouple at the device and avoid routing them near digital switching.
+    applicability:
+      part_classes: [ic, sensor]
+      net_classes: [signal, power]
+    rationale: >-
+      Reference noise maps directly into conversion error.
+    tags: [mixed-signal, reference]
+  - id: guard-ring-sensitive
+    category: mixed_signal
+    severity: advisory
+    statement: >-
+      Surround ultra-high-impedance / low-leakage analog nodes with a driven or grounded
+      guard ring.
+    applicability:
+      part_classes: [ic, sensor]
+      net_classes: [signal]
+    rationale: >-
+      A guard ring intercepts surface leakage currents that would otherwise corrupt
+      femto/pico-amp nodes.
+    tags: [mixed-signal, guard-ring]
+  - id: isolation-buffer-register
+    category: mixed_signal
+    severity: advisory
+    statement: >-
+      Place a buffer/latch register adjacent to a converter's digital bus to isolate it
+      from data-bus noise.
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal]
+    rationale: >-
+      The register acts as a Faraday shield and reduces loading/noise injection (ADI MT-031).
+    tags: [mixed-signal, buffer]

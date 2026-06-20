@@ -1,0 +1,210 @@
+rules:
+  - id: pcie-impedance
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Route PCIe Gen1–3 pairs at 85 Ω PCB differential impedance (silicon spec reference
+      is 100 Ω); target 100 Ω for Gen4+ with tighter matching.
+    constraints:
+      pcb_diff_impedance_ohm: 85
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      NXP AN10373: designing the PCB at 85 Ω compensates connector/via dips (TDR shows
+      dips to ~70 Ω). Do not conflate generations — Gen4+ targets 100 Ω.
+    tags: [pcie, impedance]
+  - id: pcie-skew
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Match PCIe intra-pair length ≤5 mil (add-in card) / ≤10 mil (system board); no
+      inter-pair (TX↔RX) match required but limit lane-to-lane skew (<2 in add-in / <7 in system).
+    constraints:
+      intra_pair_skew_mil: 5
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      NXP AN10373 / TI SLAAE45: intra-pair within 5 mils; inter-pair matching unnecessary.
+    tags: [pcie, skew]
+  - id: pcie-ac-coupling
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Place AC-coupling capacitors on the PCIe TX pair near the transmitter, both lines
+      same value/package (0402 preferred). Use 100 nF (NXP range 75–200 nF); current
+      PCIe Base Spec range is 176–265 nF — verify against the controlling spec revision.
+    constraints:
+      ac_cap_nf: 100
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      Removes TX/RX DC offset. Conflict flagged: NXP AN10373 says 75–200 nF (100 nF best);
+      the current Base Spec (per Altium) says 176–265 nF.
+    tags: [pcie, ac-coupling]
+  - id: mipi-dphy-impedance
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Route MIPI D-PHY (CSI-2/DSI) lanes as 100 Ω differential (50 Ω single-ended);
+      ±20% tolerance.
+    constraints:
+      diff_impedance_ohm: 100
+      tolerance_pct: 20
+    applicability:
+      part_classes: [ic, sensor]
+      net_classes: [signal, clock]
+    rationale: >-
+      ADI AN-1337 / Cadence: 50 Ω single-ended, 100 Ω differential. A DSI-specific 90 Ω
+      figure appears in one blog source and is less supported.
+    tags: [mipi, dphy, impedance]
+  - id: mipi-dphy-skew
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Match MIPI D-PHY intra-pair length ≤5 mil and clock-to-data lane skew within ±50 mil;
+      keep CSI-2 traces under ~30 cm.
+    constraints:
+      intra_pair_skew_mil: 5
+      clock_to_data_skew_mil: 50
+      max_length_cm: 30
+    applicability:
+      part_classes: [ic, sensor]
+      net_classes: [signal, clock]
+    rationale: >-
+      Intel Agilex D-PHY guide: data-to-clock skew within ±50 mil; Cadence: within-pair
+      ≤5 mil. Spacing 3×h intra / 5×h inter-pair.
+    tags: [mipi, skew, length-match]
+  - id: can-impedance-termination
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Route CAN as a 120 Ω differential pair and terminate with exactly one 120 Ω
+      resistor at each physical bus end (two total).
+    constraints:
+      diff_impedance_ohm: 120
+      termination_ohm: 120
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      ISO 11898-2 / NXP AN10211: 120 Ω cable terminated at both ends; mid-bus termination
+      is wrong.
+    tags: [can, termination]
+  - id: can-split-termination
+    category: high_speed_interfaces
+    severity: should
+    statement: >-
+      Use split termination (two 60 Ω series resistors with a center cap to ground, ≈4.7 nF)
+      at each end for improved common-mode/EMC; keep CAN stubs <0.3 m at 1 Mbps.
+    constraints:
+      split_resistor_ohm: 60
+      split_cap_nf: 4.7
+      max_stub_m: 0.3
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      NXP AN10211 / Altium: center-tapped split termination filters common-mode noise;
+      4.7 nF most common (33–100 nF also used).
+    tags: [can, split-termination, emc]
+  - id: rs485-impedance-termination
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Route RS-485 as a 120 Ω differential pair, terminated with one 120 Ω resistor at
+      each end only (two total); do not use 100 Ω termination that parallels below the
+      54 Ω driver minimum.
+    constraints:
+      diff_impedance_ohm: 120
+      termination_ohm: 120
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      TIA/EIA-485-A (Opto22/ADI): match 100–120 Ω cable; two parallel 100 Ω terminations
+      = 50 Ω < 54 Ω rated load.
+    tags: [rs485, termination]
+  - id: rs485-failsafe-bias
+    category: high_speed_interfaces
+    severity: should
+    statement: >-
+      Add one fail-safe bias resistor pair (pull-up on A, pull-down on B) once per bus
+      (typically at the master), sized to develop ≥200 mV idle differential (e.g. ~680–750 Ω
+      on a 120 Ω bus).
+    constraints:
+      bias_resistor_ohm: 680
+      min_idle_diff_mv: 200
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal]
+    rationale: >-
+      RS-485 needs ≥200 mV to define a known idle state; Murcal cites 750 Ω as the
+      largest usable value for ~200 mV bias.
+    tags: [rs485, fail-safe, biasing]
+  - id: i2c-bus-capacitance
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Keep total I2C bus capacitance ≤400 pF (Standard/Fast Mode, resistive pull-up);
+      ≤550 pF for Fast-Mode Plus. Use a mux or bus extender if approaching the limit.
+    constraints:
+      max_bus_cap_pf: 400
+    applicability:
+      part_classes: [ic, mcu, sensor]
+      net_classes: [signal]
+    rationale: >-
+      NXP UM10204 §5.1: 400 pF max with resistive pull-up; excess capacitance violates
+      rise-time limits.
+    tags: [i2c, capacitance]
+  - id: i2c-pullups
+    category: high_speed_interfaces
+    severity: should
+    statement: >-
+      Size I2C pull-ups for the rise-time limit (1000 ns Std, 300 ns Fast): practical
+      2.2–4.7 kΩ; lower bound set by 3 mA sink (Std/Fast) or 20 mA (FM+).
+    constraints:
+      pullup_min_ohm: 1000
+      pullup_typ_ohm: 4700
+    applicability:
+      part_classes: [ic, mcu, sensor]
+      net_classes: [signal]
+    rationale: >-
+      RC rise time must meet the mode spec; too-large resistors slow edges, too-small
+      exceed the device sink current (UM10204; TI SLVA689).
+    tags: [i2c, pull-up]
+  - id: spi-clock-series-term
+    category: high_speed_interfaces
+    severity: advisory
+    statement: >-
+      For long/fast SPI (>~50 MHz) place a ~22–33 Ω series resistor at the SCLK driver
+      output to damp ringing; short point-to-point SPI/UART needs no termination or
+      impedance control.
+    constraints:
+      series_term_ohm: 22
+    applicability:
+      part_classes: [ic, mcu]
+      net_classes: [signal, clock]
+    rationale: >-
+      SPI has no impedance requirement; a source series resistor slows edges and damps
+      reflections on longer clock nets (Altium; Practical EE).
+    tags: [spi, uart, series-termination]
+  - id: hdmi-dp-impedance-skew
+    category: high_speed_interfaces
+    severity: must
+    statement: >-
+      Route HDMI TMDS pairs at 100 Ω ±5% with intra-pair match ±3 mm; route DisplayPort
+      pairs at 100 Ω ±20% with intra-pair skew ≤5 mil (spec 20 ps) and all pairs matched.
+    constraints:
+      hdmi_diff_ohm: 100
+      hdmi_intra_match_mm: 3
+      dp_intra_skew_mil: 5
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      ADI HDMI layout guideline (100 Ω ±5%, ±3 mm); TI DisplayPort Design Guide (20 ps
+      spec, ≤5 mil board recommendation).
+    tags: [hdmi, displayport, impedance, skew]

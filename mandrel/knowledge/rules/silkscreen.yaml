@@ -1,0 +1,67 @@
+rules:
+  - id: refdes-each-component
+    category: silkscreen
+    severity: should
+    statement: >-
+      Give every component a unique reference designator on the silkscreen, placed
+      outside the courtyard, in only 0° or 90° orientations, readable from one direction.
+    applicability:
+      part_classes: [ic, resistor, connector, decoupling_cap]
+      net_classes: []
+    rationale: >-
+      Consistent, legible refdes speed assembly, debug, and rework.
+    tags: [silkscreen, refdes]
+  - id: silkscreen-not-on-pads
+    category: silkscreen
+    severity: must
+    statement: >-
+      Keep silkscreen off exposed copper pads and out of plated holes; maintain ≥0.2 mm
+      silk-to-copper and ≥0.5 mm silk-to-board-edge clearance.
+    constraints:
+      silk_to_copper_mm: 0.2
+      silk_to_edge_mm: 0.5
+    applicability:
+      part_classes: [ic, resistor]
+      net_classes: []
+    rationale: >-
+      Ink on pads degrades solderability (fabs auto-clip it); silk in holes can scrap the
+      board (KiCad KLC).
+    tags: [silkscreen, clearance]
+  - id: pin1-marker-silk
+    category: silkscreen
+    severity: must
+    statement: >-
+      Mark pin-1 and polarity on the front silkscreen for all polarized parts; use a
+      0.25 mm dot for very small packages.
+    applicability:
+      part_classes: [ic, mcu, connector, bulk_cap]
+      net_classes: []
+    rationale: >-
+      Prevents reversed assembly of polarized components.
+    tags: [silkscreen, pin1, polarity]
+  - id: board-id-version
+    category: silkscreen
+    severity: should
+    statement: >-
+      Include board name/part number, revision, and date on the silkscreen.
+    applicability:
+      part_classes: []
+      net_classes: []
+    rationale: >-
+      Traceability for field service, returns, and revision control.
+    tags: [silkscreen, version, documentation]
+  - id: fab-notes-impedance-table
+    category: silkscreen
+    severity: should
+    statement: >-
+      Provide fabrication notes and a controlled-impedance table (target Z, tolerance,
+      layer, trace geometry) in the fab output when impedance control is required.
+    constraints:
+      impedance_tolerance_pct: 10
+    applicability:
+      part_classes: []
+      net_classes: [signal]
+    rationale: >-
+      The fab must adjust geometry/stackup to hit impedance (commonly ±10%); this must be
+      called out explicitly.
+    tags: [fab-notes, impedance, documentation]

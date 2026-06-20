@@ -1,0 +1,97 @@
+rules:
+  - id: trace-width-current-ipc2152
+    category: routing
+    severity: must
+    statement: >-
+      Size current-carrying traces per IPC-2152 for a 10–20 °C rise (use the lower end
+      for enclosed/high-ambient/high-reliability designs), accounting for internal vs.
+      external layer.
+    constraints:
+      target_temp_rise_c_min: 10
+      target_temp_rise_c_max: 20
+    applicability:
+      part_classes: [regulator, connector]
+      net_classes: [power, ground]
+    rationale: >-
+      IPC-2152 (empirical) supersedes the 1950s IPC-2221 charts; internal traces run
+      hotter and need more width for the same current.
+    tags: [routing, current, ipc-2152]
+  - id: trace-spacing-voltage
+    category: routing
+    severity: must
+    statement: >-
+      Apply IPC-2221 conductor-spacing minimums by working voltage (e.g. internal 0–30 V
+      ≥0.05 mm; external uncoated 0–30 V ≥0.1 mm; 300 V external ≥1.25 mm); above 500 V
+      add per-volt spacing.
+    constraints:
+      min_internal_lowv_mm: 0.05
+      min_external_lowv_mm: 0.1
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [power, signal]
+    rationale: >-
+      IPC-2221 Table 6-1 prevents arc-over/tracking; uncoated external requires 
+      2.5 + 0.005×(V−500) mm above 500 V. 
+    tags: [routing, spacing, voltage]
+  - id: no-right-angle-traces
+    category: routing
+    severity: should
+    statement: >-
+      Use 45° mitered or curved corners rather than 90° bends on signal traces.
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, clock, rf]
+    rationale: >-
+      Right angles create local impedance discontinuity and acid-trap/etch issues.
+    tags: [routing, corners]
+  - id: trace-length-minimize
+    category: routing
+    severity: should
+    statement: >-
+      Minimize length of clocks, high-speed, and sensitive analog nets; place driver and
+      receiver close and route the most direct path.
+    applicability:
+      part_classes: [ic, oscillator]
+      net_classes: [clock, signal]
+    rationale: >-
+      Shorter nets reduce delay, loss, crosstalk, and radiated antenna length.
+    tags: [routing, length]
+  - id: 3w-spacing-crosstalk
+    category: routing
+    severity: should
+    statement: >-
+      Separate parallel signal traces by ≥3× trace width (center-to-center) to limit
+      crosstalk; widen for clocks and long parallel runs.
+    constraints:
+      spacing_x_width: 3
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, clock]
+    rationale: >-
+      The 3W rule reduces edge-coupled near-end crosstalk to acceptable levels.
+    tags: [routing, crosstalk, 3w]
+  - id: copper-balance-thieving
+    category: routing
+    severity: advisory
+    statement: >-
+      Balance copper distribution across the board (and add copper thieving where large
+      voids exist) to keep plating/etch uniform and prevent warp.
+    applicability:
+      part_classes: []
+      net_classes: []
+    rationale: >-
+      Uneven copper causes plating imbalance, resin pooling, thickness variation, and
+      board warp (JLCPCB).
+    tags: [routing, copper-balance, thieving]
+  - id: necking-minimize
+    category: routing
+    severity: advisory
+    statement: >-
+      Neck traces down only locally to clear fine-pitch pads, returning to full width
+      immediately; avoid long necked runs on power/high-current nets.
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, power]
+    rationale: >-
+      Necked sections raise local resistance/temperature and impedance discontinuity.
+    tags: [routing, necking]

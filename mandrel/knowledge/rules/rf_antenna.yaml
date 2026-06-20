@@ -1,0 +1,63 @@
+rules:
+  - id: antenna-keepout
+    category: rf_antenna
+    severity: must
+    statement: >-
+      Maintain a copper-free keepout under and around a PCB/chip antenna on all layers
+      (≥15 mm clearance for 2.4 GHz as a starting point); no traces, pours, vias, or
+      components in the zone.
+    constraints:
+      keepout_2g4_mm: 15
+    applicability:
+      part_classes: [antenna]
+      net_classes: [rf]
+    rationale: >-
+      Nearby copper/metal detunes the resonant element; the ground plane must end before
+      the radiator (Nordic; NextPCB; chip-antenna datasheets).
+    tags: [rf, antenna, keepout]
+  - id: antenna-ground-plane-size
+    category: rf_antenna
+    severity: should
+    statement: >-
+      Provide an adequate solid RF ground plane for monopole/IFA antennas (≥~35 mm length
+      for 2.4 GHz) and stitch ground vias ≤50 mil pitch along the plane edge adjacent to
+      the antenna.
+    constraints:
+      min_gnd_length_2g4_mm: 35
+      stitch_pitch_mil: 50
+    applicability:
+      part_classes: [antenna]
+      net_classes: [rf, ground]
+    rationale: >-
+      A quarter-wave antenna needs a counterpoise; via stitching gives a low-impedance
+      return and contains RF (PCB Artists; Infineon AN91445).
+    tags: [rf, antenna, ground]
+  - id: rf-50ohm-feed
+    category: rf_antenna
+    severity: must
+    statement: >-
+      Route the antenna feed as a 50 Ω controlled-impedance line over a solid continuous
+      ground, short and straight with gentle bends, no plane gaps, copying the vendor
+      reference layout for the matching network.
+    constraints:
+      feed_impedance_ohm: 50
+    applicability:
+      part_classes: [antenna, ic]
+      net_classes: [rf]
+    rationale: >-
+      Most RF front-ends are 50 Ω; gaps/stubs detune and lose power, and harmonic
+      suppression depends on reproducing the reference matching layout (Nordic nRF52 guide).
+    tags: [rf, feed-line, 50-ohm, matching]
+  - id: rf-matching-network-placement
+    category: rf_antenna
+    severity: should
+    statement: >-
+      Place matching-network components directly on the RF trace with pads no wider than
+      the trace; ground the first shunt cap via the VSS pin nearest the antenna pin.
+    applicability:
+      part_classes: [antenna, ic]
+      net_classes: [rf]
+    rationale: >-
+      Oversized pads act as stubs; correct shunt grounding is part of the harmonic filter
+      required for regulatory pass (Nordic).
+    tags: [rf, matching-network]

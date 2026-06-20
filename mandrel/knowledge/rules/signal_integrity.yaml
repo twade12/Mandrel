@@ -89,3 +89,57 @@ rules:
       net_classes: [ground]
     rationale: Stitching suppresses plane resonances and edge radiation.
     tags: [ground, via, emc]
+
+  - id: ethernet-bobsmith-termination
+    category: signal_integrity
+    severity: should
+    statement: >-
+      Terminate Ethernet magnetics center taps with Bob Smith termination — 75 Ω per pair
+      to a chassis-ground plane through a high-voltage ~1000 pF capacitor.
+    constraints:
+      bobsmith_resistor_ohm: 75
+      bobsmith_cap_pf: 1000
+    applicability:
+      part_classes: [connector, ic]
+      net_classes: [signal, ground]
+    rationale: >-
+      Provides common-mode impedance match and reduces common-mode emissions on unused
+      pairs/center taps (Microchip ENT-AN0098; Semtech).
+    tags: [ethernet, bob-smith, emc]
+  - id: ethernet-protection-phy-side
+    category: signal_integrity
+    severity: should
+    statement: >-
+      Place Ethernet surge/TVS protection on the PHY side of the magnetics, across each
+      pair; rely on the transformer isolation (≥1500 Vrms) for line-side common-mode surges.
+    applicability:
+      part_classes: [connector, ic]
+      net_classes: [signal]
+    rationale: >-
+      The transformer attenuates primary surge current; line-side TVS causes more problems
+      than it solves (Semtech Ethernet Protection Methodology).
+    tags: [ethernet, surge, tvs]
+  - id: clock-driver-one-frequency
+    category: signal_integrity
+    severity: should
+    statement: >-
+      Pass only one clock frequency through any single clock-driver/buffer package; do not
+      share a package between different-frequency clocks.
+    applicability:
+      part_classes: [oscillator, ic]
+      net_classes: [clock]
+    rationale: >-
+      Sharing a package couples clocks, producing excess jitter and crosstalk (ADI MT-031).
+    tags: [clock, jitter, crosstalk]
+  - id: rf-trace-no-plane-gap
+    category: signal_integrity
+    severity: must
+    statement: >-
+      Never route an RF feed or high-speed line over a gap/void in its reference plane;
+      keep a solid plane under the entire run to the chip ground pad.
+    applicability:
+      part_classes: [antenna, ic]
+      net_classes: [rf, signal]
+    rationale: >-
+      A plane gap breaks the return path, detuning RF and radiating noise (Nordic; PCB Artists).
+    tags: [rf, return-path, plane]

@@ -1,0 +1,107 @@
+rules:
+  - id: thermal-vias-under-exposed-pad
+    category: thermal
+    severity: must
+    statement: >-
+      Place a thermal via array under any exposed-pad (EP) power package. Use ~0.3 mm
+      finished drill on 1.0–1.25 mm pitch, populating the full exposed-pad area in a
+      regular x/y grid.
+    constraints:
+      via_drill_mm: 0.3
+      via_pitch_min_mm: 1.0
+      via_pitch_max_mm: 1.25
+    applicability:
+      part_classes: [regulator, ldo, ic, mcu, led, motor_driver]
+      net_classes: [ground, power]
+    rationale: >-
+      QFN/DFN/EP packages dissipate most heat through the paddle. Diodes Incorporated
+      AN1151 (TQFN Package Thermal Pad Via Design Guide): "make the via pitch 1mm to
+      1.25mm under the thermal pad ... a 5mm x 5mm thermal pad requires (5/1.25)^2 = 16
+      vias"; via diameter "typically 0.3mm to 0.33mm for 1oz copper." Returns diminish
+      past ~22 vias.
+    tags: [thermal, via, exposed-pad, qfn]
+  - id: thermal-via-fill-solderable-pad
+    category: thermal
+    severity: should
+    statement: >-
+      On solderable thermal pads, plug or fill thermal vias (copper-filled or
+      conductive-epoxy, IPC-4761 Type VI/VII) rather than leaving them open.
+    constraints:
+      via_fill: true
+    applicability:
+      part_classes: [regulator, ic, mcu, led]
+      net_classes: [ground]
+    rationale: >-
+      Open vias in a solderable pad wick molten solder away during reflow, starving the
+      joint and creating voids; filled/capped vias preserve planarity and yield (IPC-7093).
+    tags: [thermal, via-fill, assembly]
+  - id: thermal-paste-coverage-ep
+    category: thermal
+    severity: should
+    statement: >-
+      Apply 50–80% solder-paste coverage on exposed pads using a windowpane (segmented)
+      stencil aperture rather than one solid opening.
+    constraints:
+      paste_coverage_min_pct: 50
+      paste_coverage_max_pct: 80
+    applicability:
+      part_classes: [ic, regulator, mcu]
+      net_classes: [ground]
+    rationale: >-
+      Full-aperture paste traps outgassing flux, producing large voids under the paddle
+      that raise junction-to-board thermal resistance; segmented apertures vent gas.
+    tags: [thermal, stencil, voiding]
+  - id: copper-pour-heatsink
+    category: thermal
+    severity: should
+    statement: >-
+      Connect hot components to large copper pours and mirror the exposed-pad footprint
+      with a bottom-side pour tied to the via array to act as a heat spreader.
+    applicability:
+      part_classes: [regulator, mosfet, led, ic]
+      net_classes: [ground, power]
+    rationale: >-
+      SMD parts lack discrete heatsinks; copper area is the primary convective/conductive
+      path. Effective only where current/heat can spread without choke points.
+    tags: [thermal, copper-pour]
+  - id: thermal-relief-on-plane-pads
+    category: thermal
+    severity: should
+    statement: >-
+      Use thermal-relief spoke connections when tying ordinary component pads to large
+      planes; use solid (direct) connections only on high-current and dedicated thermal pads.
+    applicability:
+      part_classes: [resistor, decoupling_cap, connector, ic]
+      net_classes: [ground, power]
+    rationale: >-
+      A pad flooded directly into a plane sinks reflow heat, causing cold joints and
+      tombstoning; spokes balance solderability against current/thermal needs.
+    tags: [thermal-relief, solderability]
+  - id: component-spacing-from-heat
+    category: thermal
+    severity: advisory
+    statement: >-
+      Keep temperature-sensitive parts (electrolytics, crystals, references, sensors)
+      physically distant from regulators, power FETs, and other heat sources.
+    applicability:
+      part_classes: [bulk_cap, crystal, oscillator, sensor]
+      net_classes: [power, clock]
+    rationale: >-
+      Electrolytic lifetime halves per ~10 °C; oscillator and voltage-reference drift
+      track temperature gradients.
+    tags: [thermal, placement]
+  - id: copper-weight-for-current
+    category: thermal
+    severity: should
+    statement: >-
+      Increase copper weight (2 oz / 70 µm or heavier) for high-current rails to allow
+      narrower traces at the same temperature rise.
+    constraints:
+      copper_weight_oz: 2
+    applicability:
+      part_classes: [regulator, connector]
+      net_classes: [power, ground]
+    rationale: >-
+      Current capacity scales with cross-section; heavier copper trades etch resolution
+      for ampacity (IPC-2152).
+    tags: [copper-weight, current]

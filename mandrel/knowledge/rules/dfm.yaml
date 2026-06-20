@@ -1,0 +1,162 @@
+rules:
+  - id: min-trace-width-1-2layer
+    category: dfm
+    severity: must
+    statement: >-
+      Hold ≥0.127 mm (5 mil) trace width and spacing on 1–2 layer boards; use ≥0.09 mm
+      (3.5 mil) only on multilayer with the fab's high-density process and expect fees.
+    constraints:
+      min_trace_mm: 0.127
+      min_space_mm: 0.127
+    applicability:
+      part_classes: [ic, resistor, connector]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Per JLCPCB capability (2025): 5 mil (0.127 mm) floor for 1–2 layer boards, 3.5 mil
+      (0.09 mm) standard multilayer, 3 mil reserved for BGA fan-out; narrower traces lower
+      yield and conductivity.
+    tags: [dfm, trace-width]
+  - id: annular-ring-min
+    category: dfm
+    severity: must
+    statement: >-
+      Provide a minimum annular ring of 0.15 mm; set via outer diameter = drill + 0.3 mm.
+    constraints:
+      min_annular_ring_mm: 0.15
+      pad_minus_drill_mm: 0.3
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Drill-to-film registration error can break out small rings; ≥0.15 mm (0.2 mm
+      preferred) tolerates wander.  JLCPCB: via pad = drill + 0.3 mm.
+    tags: [dfm, annular-ring, via]
+  - id: drill-min
+    category: dfm
+    severity: should
+    statement: >-
+      Use ≥0.3 mm holes wherever possible; treat 0.2 mm as the mechanical-drill floor and
+      reserve 0.15 mm for laser microvias.
+    constraints:
+      preferred_drill_mm: 0.3
+      min_mechanical_drill_mm: 0.2
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Small holes raise drill-bit breakage  and plating-aspect-ratio risk; <0.3 mm only
+      when space-constrained  (JLCPCB).
+    tags: [dfm, drill]
+  - id: aspect-ratio-max
+    category: dfm
+    severity: must
+    statement: >-
+      Keep mechanical plated-through-via aspect ratio (board thickness / hole) ≤8:1 and
+      microvia aspect ratio ≤1:1 (≈0.8:1 for laser microvias).
+    constraints:
+      max_pth_aspect_ratio: 8
+      max_microvia_aspect_ratio: 1
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      High aspect ratio prevents uniform barrel plating, reducing reliability and current
+      capacity (Würth HDI design rules; IPC-2226).
+    tags: [dfm, aspect-ratio, microvia]
+  - id: copper-to-edge
+    category: dfm
+    severity: must
+    statement: >-
+      Keep copper ≥0.3 mm from the routed board edge (≥0.5 mm preferred for V-scored edges).
+    constraints:
+      copper_to_edge_mm: 0.3
+    applicability:
+      part_classes: [connector]
+      net_classes: [power, ground, signal]
+    rationale: >-
+      Routing/scoring tolerance can expose or burr edge copper, causing shorts and
+      delamination (JLCPCB).
+    tags: [dfm, edge-clearance]
+  - id: solder-mask-dam-min
+    category: dfm
+    severity: should
+    statement: >-
+      Maintain solder-mask dam/sliver width ≥0.1 mm between adjacent openings and
+      mask expansion ~0.05 mm per side.
+    constraints:
+      min_mask_dam_mm: 0.1
+      mask_expansion_mm: 0.05
+    applicability:
+      part_classes: [ic, resistor]
+      net_classes: [signal]
+    rationale: >-
+      Thin mask dams flake off, allowing solder bridging between fine-pitch pads.
+    tags: [dfm, solder-mask]
+  - id: silkscreen-min-text
+    category: dfm
+    severity: should
+    statement: >-
+      Use ≥1.0 mm silkscreen text height with ≥0.15 mm stroke; never below 0.8 mm/0.12 mm.
+    constraints:
+      min_text_height_mm: 1.0
+      min_stroke_mm: 0.15
+    applicability:
+      part_classes: [ic, resistor, connector]
+      net_classes: []
+    rationale: >-
+      Below ~0.8 mm height inkjet/LPI silkscreen is illegible or dropped; 5:1 height:stroke
+      ratio optimal (Altium; multiple fab guides).
+    tags: [dfm, silkscreen]
+  - id: acute-angle-avoid
+    category: dfm
+    severity: should
+    statement: >-
+      Avoid acute (<90°) trace-to-trace and trace-to-pad junctions that form acid traps.
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, power]
+    rationale: >-
+      Acute interior angles trap etchant, causing over-etch necking.
+    tags: [dfm, acid-trap]
+  - id: teardrops
+    category: dfm
+    severity: advisory
+    statement: >-
+      Add teardrops at trace-to-pad and trace-to-via junctions.
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal, power]
+    rationale: >-
+      Teardrops increase mechanical strength and tolerance to drill misregistration.
+    tags: [dfm, teardrop]
+  - id: fiducials-required
+    category: dfm
+    severity: should
+    statement: >-
+      Provide ≥3 global fiducials in an asymmetric pattern; 1.0 mm copper dot with a
+      mask opening ≥2× pad radius (3× preferred) and ≥2 mm of clear keepout.
+    constraints:
+      fiducial_dia_mm: 1.0
+      fiducial_keepout_mm: 2.0
+    applicability:
+      part_classes: [connector]
+      net_classes: []
+    rationale: >-
+      Pick-and-place vision needs high-contrast registration marks; asymmetry detects
+      board rotation.
+    tags: [dfm, fiducial, assembly]
+  - id: tooling-holes
+    category: dfm
+    severity: should
+    statement: >-
+      Add ≥2 diagonally-opposed non-plated tooling holes (~3.2 mm, tight tolerance) for
+      fixturing.
+    constraints:
+      tooling_hole_dia_mm: 3.2
+    applicability:
+      part_classes: [connector]
+      net_classes: []
+    rationale: >-
+      Tooling holes align ICT/assembly fixtures; non-plated to avoid plating-thickness
+      variation.
+    tags: [dfm, tooling, ict]

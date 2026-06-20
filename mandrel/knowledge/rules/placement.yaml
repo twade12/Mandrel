@@ -83,3 +83,45 @@ rules:
       part_classes: [sensor]
     rationale: Self-heating biases temperature/humidity readings.
     tags: [placement, sensor, thermal]
+
+  - id: place-by-signal-flow
+    category: placement
+    severity: should
+    statement: >-
+      Place components by signal flow and functional block (connector→protection→
+      conditioning→processing), with the regulator block isolated but near its loads.
+    applicability:
+      part_classes: [ic, regulator, connector]
+      net_classes: [signal, power]
+    rationale: >-
+      Flow-based placement shortens critical nets and naturally separates noisy and
+      sensitive sections.
+    tags: [placement, signal-flow]
+  - id: place-hot-parts-center
+    category: placement
+    severity: advisory
+    statement: >-
+      Place large heat-generating processors/regulators toward the board center (away
+      from edges) for better lateral heat spreading, while keeping them near their loads.
+    applicability:
+      part_classes: [mcu, ic, regulator]
+      net_classes: [power]
+    rationale: >-
+      Central placement gives copper area in all directions to spread heat (ADI mixed-signal
+      guidance).
+    tags: [placement, thermal]
+  - id: place-ethernet-phy-isolation
+    category: placement
+    severity: should
+    statement: >-
+      Keep the Ethernet PHY ≥25 mm (≈1 in) from the magnetics/RJ45, route MDI pairs short
+      and away from the board edge, and do not route signals under the magnetics.
+    constraints:
+      phy_to_magnetics_mm: 25
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      Pulse/TI app notes: ~1 in PHY-to-magnetics isolation is standard EMI practice; the
+      magnetics provide 1500 Vrms isolation that must not be bridged by underlying copper.
+    tags: [placement, ethernet, phy, magnetics]

@@ -1,0 +1,80 @@
+rules:
+  - id: tombstone-symmetric-pads
+    category: dfa
+    severity: must
+    statement: >-
+      Make both pads of two-terminal passives identical in size and shape, with
+      symmetric thermal connections (equal trace widths / thermal relief into planes).
+    constraints:
+      pad_symmetry: true
+    applicability:
+      part_classes: [resistor, decoupling_cap]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Asymmetric pad/copper mass causes one side to reflow first; surface tension lifts
+      the part (tombstoning/Manhattan effect). IPC-7351 pad geometry; tombstoning occurs
+      when balance factor Eb>1.
+    tags: [dfa, tombstone, passives]
+  - id: pin1-polarity-marks
+    category: dfa
+    severity: must
+    statement: >-
+      Provide a clear pin-1 indicator on polarized ICs and polarity marks on diodes,
+      LEDs, electrolytics, and connectors, outside the component courtyard.
+    applicability:
+      part_classes: [ic, mcu, connector, bulk_cap]
+      net_classes: []
+    rationale: >-
+      Prevents reversed/rotated placement, the most common assembly defect for polarized parts.
+    tags: [dfa, pin1, polarity]
+  - id: paste-aperture-symmetry
+    category: dfa
+    severity: should
+    statement: >-
+      Keep solder-paste apertures symmetric across a two-terminal part even when pad
+      sizes are mismatched; match solder-mask openings on both pads.
+    applicability:
+      part_classes: [resistor, decoupling_cap]
+      net_classes: []
+    rationale: >-
+      Unequal paste volume drives uneven wetting and tombstoning (Cadence DFA).
+    tags: [dfa, stencil]
+  - id: component-spacing-rework
+    category: dfa
+    severity: should
+    statement: >-
+      Maintain adequate edge-to-edge component spacing for pick-and-place nozzles and
+      rework tools; use larger gaps around fine-pitch and tall parts.
+    applicability:
+      part_classes: [ic, connector, resistor]
+      net_classes: []
+    rationale: >-
+      Insufficient spacing blocks placement nozzles and prevents hot-air rework without
+      disturbing neighbors.
+    tags: [dfa, spacing, rework]
+  - id: passive-size-floor
+    category: dfa
+    severity: advisory
+    statement: >-
+      Prefer 0402 or larger passives unless density forces 0201/01005; reserve 0201 for
+      compact RF/wearable designs with AOI/SPI inspection.
+    applicability:
+      part_classes: [resistor, decoupling_cap]
+      net_classes: []
+    rationale: >-
+      0201/01005 demand high-accuracy placement and tightly controlled paste; 0402 is
+      hand-solderable and higher-yielding.
+    tags: [dfa, package-size]
+  - id: tht-wave-vs-reflow
+    category: dfa
+    severity: advisory
+    statement: >-
+      Group through-hole parts for wave/selective solder and verify mixed SMT/THT process
+      compatibility; confirm reflow-rated parts before placing THT connectors in reflow.
+    applicability:
+      part_classes: [connector]
+      net_classes: []
+    rationale: >-
+      Many THT magnetics/connectors are wave-only; reflow heat melts housings unless
+      LCP/pip-in-paste rated.
+    tags: [dfa, wave, reflow, mixed-technology]

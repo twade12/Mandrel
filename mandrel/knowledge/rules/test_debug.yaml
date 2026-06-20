@@ -1,0 +1,72 @@
+rules:
+  - id: testpoint-size
+    category: test_debug
+    severity: should
+    statement: >-
+      Use ≥1.0 mm (40 mil) ICT test-point pads (1.5 mm preferred); flying-probe can use
+      down to 0.5 mm. Remove solder mask over test pads.
+    constraints:
+      ict_min_pad_mm: 1.0
+      ict_preferred_pad_mm: 1.5
+    applicability:
+      part_classes: [connector, ic]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Pogo-pin tips are 0.7–0.9 mm; 40 mil has 5–10% contact failure, 50 mil reaches
+      98–99% (Anzer/PCBSync).
+    tags: [dft, test-point, ict]
+  - id: testpoint-spacing
+    category: test_debug
+    severity: should
+    statement: >-
+      Space ICT test points ≥100 mil (2.54 mm) center-to-center where possible (50 mil
+      absolute min), ≥100 mil from component edges, and ≥125 mil from the board edge;
+      prefer bottom-side placement.
+    constraints:
+      preferred_pitch_mm: 2.54
+      min_pitch_mm: 1.27
+      edge_clearance_mm: 3.18
+    applicability:
+      part_classes: [connector]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      Wider pitch allows robust probes and cheaper single-sided fixtures; edge clearance
+      leaves room for vacuum seal/rails.
+    tags: [dft, test-point, spacing]
+  - id: testpoint-per-net
+    category: test_debug
+    severity: should
+    statement: >-
+      Provide at least one accessible test point per electrical net, plus distributed
+      ground/power probe points, for high fault coverage.
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, power, ground]
+    rationale: >-
+      One probe per net enables ~90%+ defect coverage in ICT.
+    tags: [dft, coverage]
+  - id: debug-header-swd-jtag
+    category: test_debug
+    severity: should
+    statement: >-
+      Expose an SWD/JTAG programming-and-debug header and a debug UART; keep SWD/JTAG
+      traces short and provide RESET access.
+    applicability:
+      part_classes: [mcu, ic]
+      net_classes: [signal]
+    rationale: >-
+      Programming/debug access is required for bring-up, firmware load, and field update.
+    tags: [dft, swd, jtag, debug]
+  - id: no-probe-smt-leads
+    category: test_debug
+    severity: should
+    statement: >-
+      Do not designate SMT component leads as ICT probe targets; add dedicated pads or
+      exposed (un-tented) vias instead.
+    applicability:
+      part_classes: [ic, resistor]
+      net_classes: [signal]
+    rationale: >-
+      Probe force on a lead can temporarily close an open joint, masking defects, or
+      damage fine-pitch leads.
+    tags: [dft, probing]

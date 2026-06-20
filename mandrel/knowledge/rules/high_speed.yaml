@@ -1,0 +1,136 @@
+rules:
+  - id: usb2-impedance
+    category: high_speed
+    severity: must
+    statement: >-
+      Route USB 2.0 D+/D- as a tightly-coupled 90 Ω ±15% differential pair (≈45 Ω single-ended).
+    constraints:
+      diff_impedance_ohm: 90
+      tolerance_pct: 15
+    applicability:
+      part_classes: [usb, ic]
+      net_classes: [signal]
+    rationale: >-
+      USB 2.0 Specification §7.1.1.3 (cited in Microchip AN13.10): DP/DM traces must
+      maintain nominally 90 Ω differential; mismatch causes reflections and eye closure.
+    tags: [usb, differential, impedance]
+  - id: usb2-skew
+    category: high_speed
+    severity: should
+    statement: >-
+      Match USB 2.0 D+/D- intra-pair length within ~50 mil (best ~20 mil) and keep the
+      pair short and close to the connector.
+    constraints:
+      intra_pair_skew_mil: 50
+    applicability:
+      part_classes: [usb]
+      net_classes: [signal]
+    rationale: >-
+      The High-Speed 100 ps skew budget spans the whole link (board+cable); tight board
+      matching preserves margin.
+    tags: [usb, skew, length-match]
+  - id: usb3-impedance-skew
+    category: high_speed
+    severity: must
+    statement: >-
+      Route USB 3.x SuperSpeed pairs as 90 Ω ±10–15% with intra-pair skew ≤5 mil and
+      separate SSTX/SSRX pairs by ≥5× trace width.
+    constraints:
+      diff_impedance_ohm: 90
+      intra_pair_skew_mil: 5
+      pair_separation_x_width: 5
+    applicability:
+      part_classes: [usb]
+      net_classes: [signal]
+    rationale: >-
+      At 5–10 Gb/s, discontinuities and inter-pair coupling close the eye; skew of a few
+      mils equals only a few ps (JLCPCB USB3 guide).
+    tags: [usb3, differential, skew]
+  - id: ddr3-flyby-topology
+    category: high_speed
+    severity: should
+    statement: >-
+      Use fly-by topology (controller → DRAM → DRAM → VTT termination) for DDR3/DDR4
+      address/command/control/clock; place ≥200 mil between memory devices.
+    constraints:
+      device_spacing_mil: 200
+    applicability:
+      part_classes: [mcu, ic]
+      net_classes: [signal, clock]
+    rationale: >-
+      Fly-by eliminates stub reflections of T-topology and uses write-leveling to absorb
+      the resulting flight-time skew (Altium; TI SPRABI1).
+    tags: [ddr3, ddr4, fly-by]
+  - id: ddr3-length-match
+    category: high_speed
+    severity: must
+    statement: >-
+      Length-match DDR3 address/command groups within ±20 mil to the clock, data (DQ) to
+      its DQS within ±25 mil per byte lane, and the clock differential pair within ±10 mil;
+      keep stubs <80 mil (clock <40 mil).
+    constraints:
+      addr_cmd_match_mil: 20
+      dq_to_dqs_match_mil: 25
+      clock_pair_match_mil: 10
+      max_stub_mil: 80
+    applicability:
+      part_classes: [mcu, ic]
+      net_classes: [signal, clock]
+    rationale: >-
+      Timing margin at 800+ MT/s requires tight per-group matching and via-count equality
+      (TI SPRABI1 numeric routing rules).
+    tags: [ddr3, length-match, skew]
+  - id: diff-pair-no-plane-split
+    category: high_speed
+    severity: must
+    statement: >-
+      Never route a differential pair or any high-speed net across a split or gap in its
+      reference plane; cross plane boundaries only at a stitching cap/via, at 90°.
+    applicability:
+      part_classes: [ic, usb, connector]
+      net_classes: [signal, clock, rf]
+    rationale: >-
+      A plane split forces return current on a long detour, increasing loop area, EMI,
+      and impedance discontinuity.
+    tags: [return-path, plane-split, differential]
+  - id: serpentine-tuning-at-source
+    category: high_speed
+    severity: should
+    statement: >-
+      Apply length-tuning serpentine/accordion as close as possible to the point of
+      mismatch; keep bump amplitude/spacing controlled and use 45° or arc geometry.
+    applicability:
+      part_classes: [ic]
+      net_classes: [signal, clock]
+    rationale: >-
+      Correcting skew near its origin minimizes mode conversion; tight serpentine corners
+      add discontinuity.
+    tags: [length-tuning, serpentine]
+  - id: via-stub-backdrill-hs
+    category: high_speed
+    severity: should
+    statement: >-
+      Keep high-speed signal via stubs <15 mil; back-drill or use blind/buried vias for
+      multi-gigabit links.
+    constraints:
+      max_via_stub_mil: 15
+    applicability:
+      part_classes: [ic, usb]
+      net_classes: [signal]
+    rationale: >-
+      Via stubs resonate and degrade the eye at high data rates (TI SLAAE45).
+    tags: [via-stub, back-drill]
+  - id: edge-clearance-impedance
+    category: high_speed
+    severity: should
+    statement: >-
+      Keep controlled-impedance traces ≥3× dielectric height from the reference-plane edge.
+    constraints:
+      edge_clearance_x_height: 3
+    applicability:
+      part_classes: [usb, ic]
+      net_classes: [signal, rf]
+    rationale: >-
+      Fields fringe off a nearby plane edge, raising impedance and radiation (Silicon Labs
+      AN0046).
+    tags: [impedance, edge]

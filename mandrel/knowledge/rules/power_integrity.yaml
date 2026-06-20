@@ -1,0 +1,114 @@
+rules:
+  - id: pdn-target-impedance
+    category: power_integrity
+    severity: should
+    statement: >-
+      Design the PDN to stay below target impedance Z_target = ΔV/ΔI across DC–to–the
+      relevant bandwidth; typical medium-complexity targets fall in 0.04–0.1 Ω.
+    constraints:
+      z_target_min_ohm: 0.04
+      z_target_max_ohm: 0.1
+    applicability:
+      part_classes: [mcu, ic, regulator]
+      net_classes: [power, ground]
+    rationale: >-
+      Voltage ripple = transient current × PDN impedance; holding Z below target bounds
+      rail noise across frequency (Sierra Circuits / Picotest).
+    tags: [pdn, target-impedance]
+  - id: cap-decade-banking
+    category: power_integrity
+    severity: should
+    statement: >-
+      Bank decoupling capacitors across frequency decades — bulk 10–100 µF, mid 1–10 µF,
+      and high-frequency 0.01–0.1 µF — and parallel multiple identical values rather than
+      many disparate ones.
+    constraints:
+      bulk_uf_min: 10
+      hf_uf_max: 0.1
+    applicability:
+      part_classes: [decoupling_cap, bulk_cap, ic, mcu]
+      net_classes: [power, ground]
+    rationale: >-
+      Each cap value has an SRF; staggering values covers a wide band while paralleling
+      identical caps lowers ESL without creating new anti-resonant peaks.
+    tags: [decoupling, banking, srf]
+  - id: ferrite-bead-needs-cap
+    category: power_integrity
+    severity: must
+    statement: >-
+      Always pair a power-rail ferrite bead with a bypass capacitor on the load side, and
+      check the resulting LC resonance for peaking.
+    applicability:
+      part_classes: [ic, mcu]
+      net_classes: [power]
+    rationale: >-
+      A bead alone blocks transient current the IC needs; the bead+cap forms an LC filter
+      that can peak (up to ~10 dB) if undamped (ADI AN-1368).
+    tags: [ferrite, lc-resonance, decoupling]
+  - id: ferrite-bias-derate
+    category: power_integrity
+    severity: should
+    statement: >-
+      Operate a filtering ferrite bead at ≤20% of its rated DC current.
+    constraints:
+      ferrite_bias_max_pct: 20
+    applicability:
+      part_classes: [ic, mcu]
+      net_classes: [power]
+    rationale: >-
+      Analog Devices AN-1368: use ferrite beads "at about 20% of their rated dc current";
+      at 50% rated current the MPZ1608S101A impedance "dramatically drops from 100 Ω to
+      10 Ω," collapsing filtering.
+    tags: [ferrite, dc-bias, derating]
+  - id: ferrite-not-on-fast-digital-rail
+    category: power_integrity
+    severity: should
+    statement: >-
+      Do not place a ferrite bead on the VRM output feeding fast-edge digital loads or in
+      a band overlapping the load's required channel bandwidth.
+    applicability:
+      part_classes: [mcu, ic]
+      net_classes: [power]
+    rationale: >-
+      The bead raises supply output impedance at its resonance, slowing the regulator
+      loop and exciting rail transients (Altium; ADI).
+    tags: [ferrite, pdn, emi]
+  - id: ferrite-resonance-damping
+    category: power_integrity
+    severity: advisory
+    statement: >-
+      Where a ferrite-cap filter peaks, add a damping network (series R with a larger
+      capacitor across the load) or a small series resistor instead of relying on the
+      bead alone.
+    applicability:
+      part_classes: [ic]
+      net_classes: [power]
+    rationale: >-
+      Controlled damping removes the LC peak while preserving high-frequency attenuation
+      (ADI AN-1368 method 3).
+    tags: [ferrite, damping]
+  - id: split-rail-analog-digital
+    category: power_integrity
+    severity: should
+    statement: >-
+      Generate separate analog and digital supply rails (preferably via independent LDOs)
+      for mixed-signal ICs; if one rail must be shared, isolate with a bead+cap.
+    applicability:
+      part_classes: [ic, ldo]
+      net_classes: [power]
+    rationale: >-
+      Keeps digital switching noise off the analog supply reference (ADI MT-031).
+    tags: [pdn, mixed-signal, split-rail]
+  - id: ir-drop-wide-rails
+    category: power_integrity
+    severity: should
+    statement: >-
+      Size power copper (planes/wide traces) so static IR drop stays within the load's
+      tolerance, checking entry points, vias, and connector bottlenecks.
+    applicability:
+      part_classes: [regulator, connector]
+      net_classes: [power, ground]
+    rationale: >-
+      Resistive IR drop reduces voltage at the load and concentrates heat at necks; plane
+      delivery minimizes both (IPC-2152 workflow).
+    tags: [pdn, ir-drop]

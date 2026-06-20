@@ -434,12 +434,16 @@ def _placement_rules(components: list[dict], form_factor: str) -> list:
         provider = get_provider()
         if provider.is_empty():
             return []
+        # Empty categories → retrieve every rule applicable to this board's part
+        # classes (and the general rules), across the whole taxonomy, so newly
+        # ingested knowledge is used without per-category maintenance. Severity
+        # ordering + limit keep the most important rules first.
         return provider.query(RuleQuery(
             stage="s4_layout",
-            categories=["spacing", "orientation", "connector", "placement",
-                        "decoupling", "oscillator", "rf", "ground_plane"],
+            categories=[],
             part_classes=classify_all(components),
             form_factor=form_factor,
+            limit=60,
         ))
     except Exception:
         return []

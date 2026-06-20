@@ -1,0 +1,96 @@
+rules:
+  - id: tvs-at-connector
+    category: esd_emc
+    severity: must
+    statement: >-
+      Place TVS/ESD protection within 3–5 mm of the connector entry pin, ahead of the
+      protected IC, with the shortest low-inductance path to a ground plane via.
+    constraints:
+      max_distance_to_connector_mm: 5
+    applicability:
+      part_classes: [connector, usb, ic]
+      net_classes: [signal]
+    rationale: >-
+      TI SLVA680 / Toshiba: placing the TVS near the entry point (and the IC farther away)
+      makes L4≫L1, shunting ESD current to ground before it reaches silicon; near-connector
+      placement lowers first-peak clamp voltage ~10 V.
+    tags: [esd, tvs, connector]
+  - id: tvs-no-via-before-clamp
+    category: esd_emc
+    severity: should
+    statement: >-
+      Do not place a via between the ESD entry point and the TVS, and do not route
+      unprotected traces in parallel with the protected line; use straight/≤45° routing
+      to the clamp.
+    applicability:
+      part_classes: [usb, connector, ic]
+      net_classes: [signal]
+    rationale: >-
+      Via/parallel-trace inductance forces ESD current toward the protected IC instead of
+      the clamp (TI SLVA680; Toshiba).
+    tags: [esd, tvs, layout]
+  - id: low-cap-tvs-highspeed
+    category: esd_emc
+    severity: should
+    statement: >-
+      Use low-capacitance (≤0.5 pF, often <0.1 pF/channel) TVS arrays on multi-gigabit
+      lines (USB3/HDMI/DP).
+    applicability:
+      part_classes: [usb, connector]
+      net_classes: [signal]
+    rationale: >-
+      TVS junction capacitance loads high-speed lines, closing the eye; low-C arrays
+      minimize the discontinuity.
+    tags: [esd, tvs, high-speed]
+  - id: common-mode-choke-io
+    category: esd_emc
+    severity: should
+    statement: >-
+      Use a common-mode choke on USB/differential I/O and CAN for radiated-emissions
+      control; keep it close to the connector.
+    applicability:
+      part_classes: [usb, connector]
+      net_classes: [signal]
+    rationale: >-
+      CMCs attenuate common-mode currents that drive cable radiation while passing the
+      differential signal.
+    tags: [emc, common-mode-choke]
+  - id: chassis-ground-shield-termination
+    category: esd_emc
+    severity: should
+    statement: >-
+      Connect shielded-connector shells directly to chassis ground (or to the ground
+      plane via a low-impedance path); where grounds are offset, bridge shield to system
+      ground with a high-voltage capacitor.
+    applicability:
+      part_classes: [connector, usb]
+      net_classes: [ground]
+    rationale: >-
+      A direct low-impedance shield-to-chassis bond drains ESD/HF noise instead of
+      radiating it; a cap handles floating-ground cases (Altium).
+    tags: [emc, chassis-ground, shield]
+  - id: series-term-io-filter
+    category: esd_emc
+    severity: advisory
+    statement: >-
+      Add small series resistors (e.g. 2–3 Ω) or bead+cap filtering on noisy/slow I/O to
+      damp reflections and reduce emissions where signal integrity allows.
+    applicability:
+      part_classes: [ic, connector]
+      net_classes: [signal]
+    rationale: >-
+      Edge-rate control reduces high-frequency harmonic content and ringing on cables.
+    tags: [emc, series-resistor, filtering]
+  - id: guard-trace-sensitive
+    category: esd_emc
+    severity: advisory
+    statement: >-
+      Use grounded guard traces (stitched to plane with vias) flanking exposed clock or
+      sensitive single-ended lines that cannot be moved to inner layers.
+    applicability:
+      part_classes: [ic, oscillator]
+      net_classes: [clock, signal]
+    rationale: >-
+      A via-stitched guard provides local shielding and a defined return; without
+      stitching it can itself resonate.
+    tags: [emc, guard-trace]
