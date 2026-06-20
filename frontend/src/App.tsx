@@ -6,7 +6,7 @@ import { Dock } from "./components/Dock";
 import { useStore } from "./state";
 
 export function App() {
-  const { chatOpen, toggleChat, checkpoint, resolveCheckpoint } = useStore();
+  const { chatOpen, toggleChat, checkpoint, resolveCheckpoint, theme, toggleTheme } = useStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   return (
     <div className="app">
@@ -21,6 +21,9 @@ export function App() {
               <button className="btn btn-ghost" onClick={() => resolveCheckpoint("reject")}>Reject</button>
             </div>
           )}
+          <button className="btn btn-ghost" onClick={toggleTheme} title="Toggle light/dark">
+            {theme === "dark" ? "☀ Light" : "☾ Dark"}
+          </button>
           <button className="btn btn-ghost" onClick={toggleChat}>
             {chatOpen ? "Hide Chat" : "Chat"}
           </button>

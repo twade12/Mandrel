@@ -1,4 +1,5 @@
 import { DockviewReact, DockviewReadyEvent, IDockviewPanelProps } from "dockview-react";
+import { useStore } from "../state";
 import { DeviceSpecsTab } from "./tabs/DeviceSpecsTab";
 import { SchematicTab } from "./tabs/SchematicTab";
 import { PcbLayoutTab } from "./tabs/PcbLayoutTab";
@@ -36,11 +37,12 @@ function onReady(event: DockviewReadyEvent) {
 }
 
 export function Dock() {
+  const { theme } = useStore();
   return (
     <DockviewReact
       components={components}
       onReady={onReady}
-      className="dockview-theme-dark"
+      className={theme === "light" ? "dockview-theme-light" : "dockview-theme-dark"}
     />
   );
 }

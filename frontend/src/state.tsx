@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useRef, useCallback } from "react";
+import React, { createContext, useContext, useReducer, useRef, useCallback, useEffect } from "react";
 import {
   PipelineEvent,
   DesignState,
@@ -40,6 +40,7 @@ interface State {
   checkpoint: { stage: string; label: string } | null;
   chat: ChatMsg[];
   chatOpen: boolean;
+  theme: "dark" | "light";
 }
 
 type Action =
@@ -47,7 +48,13 @@ type Action =
   | { type: "select"; runId: string }
   | { type: "event"; runId: string; ev: PipelineEvent }
   | { type: "toggle_chat" }
+  | { type: "toggle_theme" }
   | { type: "chat_msg"; msg: ChatMsg };
+
+function initialTheme(): "dark" | "light" {
+  const saved = typeof localStorage !== "undefined" ? localStorage.getItem("mandrel-theme") : null;
+  return saved === "light" ? "light" : "dark";
+}
 
 const initial: State = {
   projects: [],
@@ -59,6 +66,7 @@ const initial: State = {
   checkpoint: null,
   chat: [{ role: "assistant", text: "Describe a device to build, or ask for an adjustment once a design exists." }],
   chatOpen: true,
+  theme: initialTheme(),
 };
 
 function freshStages(): Record<string, StageStatus> {
@@ -83,6 +91,8 @@ function reducer(state: State, action: Action): State {
     }
     case "toggle_chat":
       return { ...state, chatOpen: !state.chatOpen };
+    case "toggle_theme":
+      return { ...state, theme: state.theme === "dark" ? "light" : "dark" };
     case "chat_msg":
       return { ...state, chat: [...state.chat, action.msg] };
     case "event": {
@@ -134,6 +144,7 @@ interface Store extends State {
   selectProject: (runId: string) => void;
   resolveCheckpoint: (d: "approve" | "reject") => void;
   toggleChat: () => void;
+  toggleTheme: () => void;
   sendChat: (text: string) => void;
 }
 
@@ -161,6 +172,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [state.activeRunId],
   );
   const toggleChat = useCallback(() => dispatch({ type: "toggle_chat" }), []);
+  const toggleTheme = useCallback(() => dispatch({ type: "toggle_theme" }), []);
+
+  // Apply the theme to the document root + persist whenever it changes.
+  useEffect(() => {
+    document.documentElement.dataset.theme = state.theme;
+    localStorage.setItem("mandrel-theme", state.theme);
+  }, [state.theme]);
   const sendChat = useCallback((text: string) => {
     dispatch({ type: "chat_msg", msg: { role: "user", text } });
     // Chat-driven edits land in a later workstream; acknowledge for now.
@@ -174,7 +192,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ ...state, startRun, selectProject, resolveCheckpoint, toggleChat, sendChat }}>
+    <Ctx.Provider value={{ ...state, startRun, selectProject, resolveCheckpoint, toggleChat, toggleTheme, sendChat }}>
       {children}
     </Ctx.Provider>
   );

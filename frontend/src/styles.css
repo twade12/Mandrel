@@ -1,4 +1,5 @@
-:root {
+:root,
+:root[data-theme="dark"] {
   --bg: #0c1521;
   --surface: #111d2e;
   --surface-2: #0a1320;
@@ -9,7 +10,22 @@
   --success: #10b981;
   --error: #f43f5e;
   --warning: #f59e0b;
+  --log-bg: #060d16;
   --font: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+:root[data-theme="light"] {
+  --bg: #f1f5f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #cbd5e1;
+  --cyan: #0e7490;
+  --text: #0f172a;
+  --muted: #64748b;
+  --success: #047857;
+  --error: #be123c;
+  --warning: #b45309;
+  --log-bg: #f8fafc;
 }
 
 * { box-sizing: border-box; }
@@ -107,7 +123,7 @@ textarea:focus, input:focus, select:focus { outline: none; border-color: var(--c
 .placeholder { color: var(--muted); font-size: 12px; padding: 24px; text-align: center; }
 table { border-collapse: collapse; width: 100%; font-size: 12px; }
 th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-td { padding: 6px 10px; border-bottom: 1px solid rgba(30, 58, 95, 0.5); }
+td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
 tr:hover td { background: rgba(34, 211, 238, 0.03); }
 .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 12px; }
 .kv .k { color: var(--muted); }
@@ -115,8 +131,8 @@ tr:hover td { background: rgba(34, 211, 238, 0.03); }
 .badge.error { background: rgba(244,63,94,.15); color: var(--error); }
 .badge.warning { background: rgba(245,158,11,.12); color: var(--warning); }
 .badge.ok { background: rgba(16,185,129,.15); color: var(--success); }
-.svg-frame { width: 100%; height: 100%; background: #060d16; border: 1px solid var(--border); border-radius: 4px; overflow: auto; }
+.svg-frame { width: 100%; height: 100%; background: var(--log-bg); border: 1px solid var(--border); border-radius: 4px; overflow: auto; }
 .svg-frame img { width: 100%; height: auto; display: block; }
-.canvas-wrap { width: 100%; height: 100%; min-height: 360px; background: #060d16; border: 1px solid var(--border); border-radius: 4px; }
+.canvas-wrap { width: 100%; height: 100%; min-height: 360px; background: var(--log-bg); border: 1px solid var(--border); border-radius: 4px; }
 .muted { color: var(--muted); }
 .accent { color: var(--cyan); }
