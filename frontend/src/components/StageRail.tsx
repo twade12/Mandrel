@@ -1,13 +1,20 @@
 import { STAGES, useStore } from "../state";
 
 export function StageRail() {
-  const { stageStatus, activity } = useStore();
+  const { stageStatus, activity, selectedStage, selectStage } = useStore();
   return (
     <div className="stage-rail">
       {STAGES.map((s, i) => {
         const st = stageStatus[s.name] ?? "idle";
+        const sel = selectedStage === s.name;
         return (
-          <div key={s.name} className={`stage-pill ${st}`} title={activity.message ?? st}>
+          <div
+            key={s.name}
+            className={`stage-pill ${st}` + (sel ? " selected" : "")}
+            title={`${activity.message ?? st} — click for logs`}
+            style={{ cursor: "pointer" }}
+            onClick={() => selectStage(sel ? null : s.name)}
+          >
             {st === "running" ? <span className="spinner" /> :
              st === "passed" ? <span>✓</span> :
              st === "failed" ? <span>✕</span> :

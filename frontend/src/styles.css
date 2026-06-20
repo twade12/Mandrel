@@ -97,6 +97,7 @@ textarea:focus, input:focus, select:focus { outline: none; border-color: var(--c
 .stage-pill.passed { border-color: var(--success); color: var(--success); }
 .stage-pill.failed { border-color: var(--error); color: var(--error); }
 .stage-pill.waiting { border-color: var(--warning); color: var(--warning); }
+.stage-pill.selected { box-shadow: 0 0 0 1px var(--cyan) inset; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
 .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .spinner {

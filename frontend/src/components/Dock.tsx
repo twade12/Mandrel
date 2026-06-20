@@ -6,6 +6,7 @@ import { PcbLayoutTab } from "./tabs/PcbLayoutTab";
 import { ModelTab } from "./tabs/ModelTab";
 import { BomTab } from "./tabs/BomTab";
 import { ErcTab, DrcTab } from "./tabs/ErcDrcTabs";
+import { LogsTab } from "./tabs/LogsTab";
 
 // dockview renders panel bodies from this component map by key. Each wrapper
 // pulls live design state from the store, so panels update as the run streams.
@@ -17,6 +18,7 @@ const components: Record<string, React.FC<IDockviewPanelProps>> = {
   drc: () => <DrcTab />,
   model: () => <ModelTab />,
   bom: () => <BomTab />,
+  logs: () => <LogsTab />,
 };
 
 function onReady(event: DockviewReadyEvent) {
@@ -32,6 +34,9 @@ function onReady(event: DockviewReadyEvent) {
   api.addPanel({ id: "drc", component: "drc", title: "DRC", position: { referencePanel: pcb.id, direction: "within" } });
   api.addPanel({ id: "model", component: "model", title: "3D Model", position: { referencePanel: pcb.id, direction: "within" } });
   api.addPanel({ id: "bom", component: "bom", title: "BOM + Sourcing", position: { referencePanel: pcb.id, direction: "within" } });
+  // Logs docked below as its own row — the stage-inspection view.
+  api.addPanel({ id: "logs", component: "logs", title: "Logs",
+    position: { referencePanel: specs.id, direction: "below" } });
   specs.api.setActive();
   void schematic;
 }

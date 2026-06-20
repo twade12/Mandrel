@@ -41,6 +41,7 @@ interface State {
   chat: ChatMsg[];
   chatOpen: boolean;
   theme: "dark" | "light";
+  selectedStage: string | null;
 }
 
 type Action =
@@ -49,6 +50,7 @@ type Action =
   | { type: "event"; runId: string; ev: PipelineEvent }
   | { type: "toggle_chat" }
   | { type: "toggle_theme" }
+  | { type: "select_stage"; stage: string | null }
   | { type: "chat_msg"; msg: ChatMsg };
 
 function initialTheme(): "dark" | "light" {
@@ -67,6 +69,7 @@ const initial: State = {
   chat: [{ role: "assistant", text: "Describe a device to build, or ask for an adjustment once a design exists." }],
   chatOpen: true,
   theme: initialTheme(),
+  selectedStage: null,
 };
 
 function freshStages(): Record<string, StageStatus> {
@@ -93,6 +96,8 @@ function reducer(state: State, action: Action): State {
       return { ...state, chatOpen: !state.chatOpen };
     case "toggle_theme":
       return { ...state, theme: state.theme === "dark" ? "light" : "dark" };
+    case "select_stage":
+      return { ...state, selectedStage: action.stage };
     case "chat_msg":
       return { ...state, chat: [...state.chat, action.msg] };
     case "event": {
@@ -145,6 +150,7 @@ interface Store extends State {
   resolveCheckpoint: (d: "approve" | "reject") => void;
   toggleChat: () => void;
   toggleTheme: () => void;
+  selectStage: (stage: string | null) => void;
   sendChat: (text: string) => void;
 }
 
@@ -173,6 +179,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
   const toggleChat = useCallback(() => dispatch({ type: "toggle_chat" }), []);
   const toggleTheme = useCallback(() => dispatch({ type: "toggle_theme" }), []);
+  const selectStage = useCallback((stage: string | null) => dispatch({ type: "select_stage", stage }), []);
 
   // Apply the theme to the document root + persist whenever it changes.
   useEffect(() => {
@@ -192,7 +199,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ ...state, startRun, selectProject, resolveCheckpoint, toggleChat, toggleTheme, sendChat }}>
+    <Ctx.Provider value={{ ...state, startRun, selectProject, resolveCheckpoint, toggleChat, toggleTheme, selectStage, sendChat }}>
       {children}
     </Ctx.Provider>
   );
