@@ -149,6 +149,12 @@ class LayoutStage:
             placements = [p for p in placements if p.get("ref") not in usb_fixed]
             placements.extend(usb_fixed.values())
 
+            # Deterministic overlap resolution: the LLM gives a rough, sensible
+            # arrangement; this guarantees no courtyard overlaps (the dominant
+            # DRC failure) by spreading parts apart using real courtyard sizes,
+            # keeping fixed parts put and staying inside the keep-in rectangle.
+            _resolve_overlaps(placements, components, keep_in, set(usb_fixed))
+
             script_src = _build_placement_script(
                 pcb_path=pcb_path,
                 components=components,
@@ -343,6 +349,76 @@ class LayoutStage:
 
 def _existing(paths: list[Path]) -> list[Path]:
     return [p for p in paths if p.exists()]
+
+
+def _resolve_overlaps(
+    placements: list[dict],
+    components: list[dict],
+    keep_in: tuple[float, float, float, float],
+    fixed_refs: set[str],
+    min_gap_mm: float = 0.5,
+    iterations: int = 300,
+) -> None:
+    """Spread overlapping components apart in place (relaxation).
+
+    Uses each part's real courtyard size; pushes overlapping pairs along the
+    axis of least penetration, never moves fixed parts (USB-C), and clamps
+    everything to the keep-in rectangle. Mutates the placement dicts. This
+    deterministically eliminates COURTYARDS_OVERLAP — the dominant S4 failure —
+    and, by clearing the parts apart, unblocks routing.
+    """
+    size = {c["ref"]: (c.get("size_mm") or [1.0, 1.0]) for c in components if "ref" in c}
+    pos = {p["ref"]: [float(p.get("x_mm", 0.0)), float(p.get("y_mm", 0.0))]
+           for p in placements if "ref" in p}
+    refs = list(pos)
+    x0, y0, x1, y1 = keep_in
+
+    def clamp(ref: str) -> None:
+        if ref in fixed_refs:
+            return
+        w, h = size.get(ref, [1.0, 1.0])
+        pos[ref][0] = min(max(pos[ref][0], x0 + w / 2), x1 - w / 2)
+        pos[ref][1] = min(max(pos[ref][1], y0 + h / 2), y1 - h / 2)
+
+    for _ in range(iterations):
+        moved = False
+        for i in range(len(refs)):
+            for j in range(i + 1, len(refs)):
+                a, b = refs[i], refs[j]
+                wa, ha = size.get(a, [1.0, 1.0])
+                wb, hb = size.get(b, [1.0, 1.0])
+                reqx = (wa + wb) / 2 + min_gap_mm
+                reqy = (ha + hb) / 2 + min_gap_mm
+                dx = pos[b][0] - pos[a][0]
+                dy = pos[b][1] - pos[a][1]
+                ox = reqx - abs(dx)
+                oy = reqy - abs(dy)
+                if ox <= 0 or oy <= 0:
+                    continue  # no overlap on at least one axis
+                # push along the axis of least penetration
+                a_fixed = a in fixed_refs
+                b_fixed = b in fixed_refs
+                share_a = 0.0 if a_fixed else (1.0 if b_fixed else 0.5)
+                share_b = 0.0 if b_fixed else (1.0 if a_fixed else 0.5)
+                if ox < oy:
+                    s = 1.0 if dx >= 0 else -1.0
+                    pos[a][0] -= s * ox * share_a
+                    pos[b][0] += s * ox * share_b
+                else:
+                    s = 1.0 if dy >= 0 else -1.0
+                    pos[a][1] -= s * oy * share_a
+                    pos[b][1] += s * oy * share_b
+                clamp(a)
+                clamp(b)
+                moved = True
+        if not moved:
+            break
+
+    for p in placements:
+        r = p.get("ref")
+        if r in pos:
+            p["x_mm"] = round(pos[r][0], 3)
+            p["y_mm"] = round(pos[r][1], 3)
 
 
 def _placement_rules(components: list[dict], form_factor: str) -> list:

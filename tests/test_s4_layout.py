@@ -416,3 +416,34 @@ async def test_s4_drc_failure_propagates(tmp_path: Path) -> None:
 
     assert result.verifier_result.passed is False
     assert any(v.severity == "error" for v in result.verifier_result.violations)
+
+
+# ── overlap resolver ──────────────────────────────────────────────────────────
+
+
+def test_resolve_overlaps_eliminates_overlaps():
+    import itertools
+    from mandrel.pipeline.s4_layout import _resolve_overlaps
+    comps = [{"ref": f"U{i}", "size_mm": [7.0, 7.0]} for i in range(1, 4)]
+    placements = [{"ref": "U1", "x_mm": 25, "y_mm": 15},
+                  {"ref": "U2", "x_mm": 26, "y_mm": 15},
+                  {"ref": "U3", "x_mm": 27, "y_mm": 15}]
+    keep_in = (11.0, 2.0, 48.8, 20.86)
+    _resolve_overlaps(placements, comps, keep_in, fixed_refs=set())
+    size = {c["ref"]: c["size_mm"] for c in comps}
+    pos = {p["ref"]: (p["x_mm"], p["y_mm"]) for p in placements}
+    for a, b in itertools.combinations(pos, 2):
+        sa, sb = size[a], size[b]
+        gap = max(abs(pos[a][0] - pos[b][0]) - (sa[0] + sb[0]) / 2,
+                  abs(pos[a][1] - pos[b][1]) - (sa[1] + sb[1]) / 2)
+        assert gap >= 0.5 - 1e-6, f"{a}/{b} still overlap"
+
+
+def test_resolve_overlaps_keeps_fixed_part_put():
+    from mandrel.pipeline.s4_layout import _resolve_overlaps
+    comps = [{"ref": "J1", "size_mm": [9.0, 9.0]}, {"ref": "U1", "size_mm": [7.0, 7.0]}]
+    placements = [{"ref": "J1", "x_mm": 6.0, "y_mm": 11.43},
+                  {"ref": "U1", "x_mm": 7.0, "y_mm": 11.43}]
+    _resolve_overlaps(placements, comps, (11.0, 2.0, 48.8, 20.86), fixed_refs={"J1"})
+    j1 = next(p for p in placements if p["ref"] == "J1")
+    assert j1["x_mm"] == 6.0 and j1["y_mm"] == 11.43   # fixed part did not move
